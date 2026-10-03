@@ -35,8 +35,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:3px
 .card.act .ci span{color:var(--c);font-weight:700}
 .emo{position:absolute;right:4px;top:-10px;font-size:1.5rem;font-style:normal;animation:pop .35s;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6))}
 
-/* The Board - Maximized for Mobile Screen */
-.boardwrap{position:relative;width:100%;max-width:min(100%,calc(100dvh - 170px));aspect-ratio:1/1;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08);flex:none;overflow:hidden}
+/* The Board - Maximized for Mobile Screen with Increased Vertical Height */
+.boardwrap{position:relative;width:100%;max-width:min(100%,calc(100dvh - 165px));aspect-ratio:1 / 1.14;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08);flex:none;overflow:hidden}
 .boardwrap svg{display:block;width:100%;height:100%}
 .cell{filter:drop-shadow(0 0 1px rgba(156,192,255,.35))}
 .glow{filter:drop-shadow(0 0 3px currentColor)}
@@ -46,9 +46,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:3px
 .tap-me{animation:pulseTap 1.3s infinite alternate ease-in-out;transform-box:fill-box;transform-origin:center}
 @keyframes pulseTap{0%{transform:scale(1);filter:drop-shadow(0 0 3px rgba(63,240,160,.6))}100%{transform:scale(1.08);filter:drop-shadow(0 0 10px rgba(63,240,160,.95))}}
 @keyframes pop{from{transform:scale(.4) rotate(-40deg)}to{transform:none}}
-.tok{transition:transform .19s cubic-bezier(0.2,0.85,0.3,1.15);will-change:transform}
+.tok{transition:transform .19s cubic-bezier(0.2,0.85,0.3,1.15);will-change:transform;transform-box:fill-box;transform-origin:center}
 .tok.hop{animation:hopJump .19s ease-in-out}
-@keyframes hopJump{0%{transform:scale(1)}45%{transform:scale(1.35) translateY(-3px);filter:drop-shadow(0 4px 8px rgba(0,0,0,.7))}100%{transform:scale(1)}}
+@keyframes hopJump{0%{transform:scale(1)}45%{transform:scale(1.22);filter:drop-shadow(0 0 6px #ffffffdd)}100%{transform:scale(1)}}
 .ring{fill:none;stroke:#ffffff;stroke-width:.1;animation:ring .8s infinite alternate ease-in-out}
 @keyframes ring{to{r:.62;stroke-opacity:.3}}
 
@@ -82,4 +82,20 @@ h2{margin:0;font-size:1.5rem}h3{margin:10px 0 0}.sub{margin:0;color:#8ea2cc;font
 .invite{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:14px;background:#111b31;border:1px dashed #2a3a5c}.invite .alt{padding:8px 14px}
 .banner{position:fixed;top:0;left:0;right:0;text-align:center;padding:6px;background:#b4231f;font-size:.85rem;z-index:5}.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#22314f;padding:8px 16px;border-radius:20px;z-index:5}
 .modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;z-index:6;padding:20px;backdrop-filter:blur(6px)}.sheet{width:100%;max-width:340px;background:#111b31;border:1px solid #2a3a5c;border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:12px;text-align:center;animation:pop .35s;box-shadow:0 14px 40px rgba(0,0,0,.7)}.trophy{font-size:3.2rem}
-@media(prefers-reduced-motion:reduce){.spin,.tok,.sheet,.dice,.ring,.emo,.pulse-yard,.tap-me{animation:none;transition:none}}
+.bubble{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translateX(-50%);background:rgba(10,18,34,.96);border:1.5px solid var(--c);color:#fff;font-size:.76rem;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.65);z-index:12;animation:pop .25s ease-out;pointer-events:none;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--c)}
+.chat-drawer{position:fixed;inset:auto 0 0 0;background:rgba(11,18,34,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1.5px solid #283d6a;border-radius:22px 22px 0 0;padding:12px 14px calc(14px + env(safe-area-inset-bottom));z-index:25;display:flex;flex-direction:column;gap:8px;box-shadow:0 -12px 45px rgba(0,0,0,.75);animation:slideUp .22s ease-out;max-height:55vh}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.chat-head{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:.95rem;color:#e6efff;padding-bottom:2px;border-bottom:1px solid rgba(255,255,255,.07)}
+.chat-head button{background:none;font-size:1.1rem;color:#8ea2cc;padding:2px 8px}
+.chat-list{display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:120px;padding:2px 0}
+.chat-item{font-size:.8rem;padding:5px 9px;border-radius:9px;background:rgba(255,255,255,.05);word-break:break-word}
+.chat-item b{margin-right:6px}
+.quick-chats{display:flex;gap:5px;overflow-x:auto;padding:2px 0;-webkit-overflow-scrolling:touch}
+.quick-chats button{flex:none;background:#172542;border:1px solid #2a3d68;padding:6px 10px;border-radius:12px;font-size:.76rem;font-weight:600;color:#d5e3ff}
+.quick-chats button:active{background:#253d70}
+.chat-form{display:flex;gap:6px}
+.chat-input{flex:1;background:#0d1527;border:1.5px solid #2a3d68;border-radius:12px;padding:9px 12px;color:#fff;font-size:.85rem;outline:none}
+.chat-input:focus{border-color:#4aa3ff}
+.chat-send{background:#22d37a;color:#052414;font-weight:800;border-radius:12px;padding:9px 16px;font-size:.85rem}
+@media(prefers-reduced-motion:reduce){.spin,.tok,.sheet,.dice,.ring,.emo,.pulse-yard,.tap-me,.chat-drawer{animation:none;transition:none}}

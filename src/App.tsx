@@ -7,6 +7,7 @@ const PATH:[number,number][]=(()=>{let [x,y]=[1,6];const o:[number,number][]=[[x
  'R4a1U5R2D5b1R5D2L5c1D5L2U5d1L5U2'.match(/[A-Za-z]\d/g)!.forEach(s=>{for(let i=0;i<+s[1];i++){x+=D[s[0]][0];y+=D[s[0]][1];o.push([x,y]);}});return o;})();
 const HOME=[[1,7,1,0],[7,1,0,1],[13,7,-1,0],[7,13,0,-1]];
 const PIPS=[[],[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]],EMO=['😂','😎','😡','👏','😭','🔥'];
+const QUICK=['Hello! 👋','Good game! 🤝','Well played! 👏','Roll a 6! 🎲','Nice move! 🔥','Oops! 😅'];
 const yard=(c:number)=>[c===1||c===2?9:0,c>=2?9:0];
 function pos(c:number,p:number,i:number):[number,number]{
  if(p===-1){const [ox,oy]=yard(c);return[ox+2+(i%2)*2,oy+2+Math.floor(i/2)*2];}
@@ -20,6 +21,8 @@ export default function App(){
  const [room,setRoom]=useState(clean(location.hash.slice(1)));const [name,setName]=useState<string>(localStorage.name||'');
  const [g,setG]=useState<Game|null>(null);const [on,setOn]=useState(false);const [muted,setMuted]=useState(false);const [err,setErr]=useState('');
  const [go,setGo]=useState(false);const [myId,setMyId]=useState('');const [pick,setPick]=useState(false);const [emo,setEmo]=useState<Record<string,string>>({});
+ const [chats,setChats]=useState<{id:string;name:string;text:string;color:number}[]>([]);const [bubble,setBubble]=useState<Record<string,string>>({});
+ const [chatOpen,setChatOpen]=useState(false);const [msg,setMsg]=useState('');
  const [tab,setTab]=useState('home');const [st,setSt]=useState<Stats>(loadStats);const [cfg,setCfg]=useState<Cfg>(loadCfg);
  const [online,setOnline]=useState(false);const [toast,setToast]=useState('');const [now,setNow]=useState(Date.now());
  const [dispTokens,setDispTokens]=useState<number[][]|null>(null);const [stepping,setStepping]=useState<{c:number;i:number}|null>(null);
@@ -29,6 +32,7 @@ export default function App(){
  const [streams,setStreams]=useState<Record<string,MediaStream>>({});const ws=useRef<WebSocket>();const voice=useRef<Voice>();
  const prev=useRef<Game|null>(null);const counted=useRef('');const cfgRef=useRef(cfg);
  const send=(m:any)=>ws.current?.readyState===1&&ws.current.send(JSON.stringify(m));
+ const sendChat=(t:string)=>{const cleanT=t.trim().slice(0,60);if(!cleanT)return;send({t:'chat',text:cleanT});setMsg('');sfx('chat',cfgRef.current.sound);};
  const say=(t:string)=>{setToast(t);setTimeout(()=>setToast(''),2200);};
  useEffect(()=>{cfgRef.current=cfg;localStorage.cfg=JSON.stringify(cfg);},[cfg]);
  useEffect(()=>{localStorage.st=JSON.stringify(st);},[st]);useEffect(()=>{localStorage.name=name;},[name]);
@@ -69,7 +73,12 @@ export default function App(){
    w.onmessage=e=>{if(e.data==='pong')return;const m=JSON.parse(e.data);if(m.t==='state')onStateRef.current?.(m.g);
     else if(m.t==='you'){setMyId(m.id);if(!voice.current)voice.current=new Voice(m.id,send,(p,s)=>setStreams(o=>{const n={...o};s?n[p]=s:delete n[p];return n;}));}
     else if(m.t==='sig')voice.current?.onSig(m.from,m.data);
-    else if(m.t==='emo'){setEmo(o=>({...o,[m.pid]:m.e}));setTimeout(()=>setEmo(o=>{const n={...o};delete n[m.pid];return n;}),2500);}};
+    else if(m.t==='emo'){setEmo(o=>({...o,[m.pid]:m.e}));setTimeout(()=>setEmo(o=>{const n={...o};delete n[m.pid];return n;}),2500);}
+    else if(m.t==='chat'){
+     setChats(o=>[...o.slice(-20),{id:m.pid,name:m.name,text:m.text,color:m.color}]);
+     setBubble(o=>({...o,[m.pid]:m.text}));
+     sfx('chat',cfgRef.current.sound);
+     setTimeout(()=>setBubble(o=>{const n={...o};delete n[m.pid];return n;}),3500);};};
    w.onclose=()=>{setOnline(false);clearInterval(ping);if(!dead)t=setTimeout(open,1500);};};open();
   return()=>{dead=true;clearTimeout(t);clearTimeout(animTimer.current);clearTimeout(autoTimer.current);isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;};},[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
@@ -80,8 +89,7 @@ export default function App(){
    if(me){const w=g.winner===me.color;setSt(s=>({...s,games:s.games+1,wins:s.wins+(w?1:0),coins:s.coins+10+(w?50:0)}));}}},[g]);
  useEffect(()=>{clearTimeout(autoTimer.current);if(!cfg.automove||!g||g.status!=='playing'||animating||isAnimatingRef.current)return;const cur=g.players[g.turn];if(cur?.id!==myId||g.roll===null)return;
   const myTokens=g.tokens[cur.color];const mvs=legal(myTokens,g.roll);if(mvs.length===0)return;
-  const unHomeTokens=myTokens.filter(p=>p!==56);
-  const shouldAuto=mvs.length===1||unHomeTokens.length===1||(mvs.length>0&&mvs.every(i=>myTokens[i]===-1));
+  const shouldAuto=mvs.length===1||(mvs.length>1&&mvs.every(i=>myTokens[i]===-1));
   if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{send({t:'move',i:tgt});},280);}return()=>clearTimeout(autoTimer.current);
  },[g?.status,g?.roll,g?.turn,animating,myId,cfg.automove]);
  const enter=(r:string)=>{r=clean(r);if(!name.trim()||r.length!==6){setErr('Enter your name and a 6-character room code');return;}
@@ -100,8 +108,7 @@ export default function App(){
    {tab==='ranks'&&<Ranks me={myId}/>}{tab==='settings'&&<Settings cfg={cfg} setCfg={setCfg} reset={()=>{localStorage.clear();location.hash='';location.reload();}}/>}</div><TabBar tab={tab} set={setTab}/></>;}
  const me=g.players.find(p=>p.id===myId),cur=g.players[g.turn],mine=g.status==='playing'&&cur?.id===myId,mc=me?.color??0,host=g.players[0]?.id===myId;
  const mvs=mine&&g.roll!==null?legal(g.tokens[mc],g.roll):[];
- const unHomeTokens=mine?g.tokens[mc].filter(p=>p!==56):[];
- const isOne=mvs.length===1||unHomeTokens.length===1||(mvs.length>0&&mvs.every(i=>g.tokens[mc][i]===-1));
+ const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
  const movable=!animating&&mine&&g.roll!==null?mvs:[];
  const seen:Record<string,number>={};const secs=Math.max(0,Math.ceil((g.deadline-now)/1000));
  let label='ROLL DICE',dis=true,act=()=>send({t:'roll'}),cap='';
@@ -117,7 +124,7 @@ export default function App(){
  const share=()=>{if(navigator.share)navigator.share({title:'Ludo Online',url:location.href}).catch(()=>{});else{navigator.clipboard?.writeText(location.href);say('Invite link copied');}};
  const cell=(x:number,y:number,f:string,k:string,star=false)=><g key={k}><rect x={x+.06} y={y+.06} width={.88} height={.88} rx={.14} fill={f} className="cell"/>{star&&<text x={x+.5} y={y+.72} fontSize=".6" textAnchor="middle" fill="#ffb020">★</text>}</g>;
  const card=(c:number)=>{const p=g.players.find(q=>q.color===c);const a=g.status==='playing'&&!!p&&cur?.id===p.id;const h=g.tokens[c].filter(x=>x===56).length;
-  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':COL[c]} as any}><div className="av">{p?(p.av||'🙂'):'?'}</div>
+  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':COL[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':COL[c]} as any}>💬 {bubble[p.id]}</div>}<div className="av">{p?(p.av||'🙂'):'?'}</div>
    <div className="ci"><b>{p?p.name:'Waiting…'}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
@@ -128,7 +135,7 @@ export default function App(){
   <button className={'ic'+(on?' live':'')} onClick={toggleVoice} title="Voice chat">🎙</button></header>
   {Object.entries(streams).map(([k,s])=><Audio key={k} s={s}/>)}{err&&<p className="err">{err}</p>}
   <div className="cards">{card(0)}{card(1)}</div>
-  <div className="boardwrap" style={{background:T.bg,borderColor:T.line}}><svg viewBox="0.3 0.3 14.4 14.4">
+  <div className="boardwrap" style={{background:T.bg,borderColor:T.line}}><svg viewBox="-0.15 -0.15 15.3 15.3" preserveAspectRatio="none">
    {[0,1,2,3].map(c=>{const [ox,oy]=yard(c);const isTurn=g.status==='playing'&&cur?.color===c;return<g key={c}>
     <rect x={ox+.5} y={oy+.5} width={5} height={5} rx={.7} fill={COL[c]} fillOpacity={isTurn?".24":".12"} stroke={COL[c]} strokeWidth={isTurn?".13":".08"} className={"glow"+(isTurn?" pulse-yard":"")} style={{color:COL[c]}}/>
     {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={COL[c]} strokeOpacity=".4" strokeWidth=".05"/>;})}</g>;})}
@@ -153,10 +160,14 @@ export default function App(){
     <button className="cta" disabled={dis} onClick={act}>{label}</button>
     <button className="side" onClick={()=>host&&g.players.some(p=>p.bot)?send({t:'kick_bot'}):share()}>{host&&g.players.some(p=>p.bot)?'- Bot ❌':'Invite 📋'}</button></>
    ):(
-    <><button className="side" onClick={()=>setPick(!pick)}>Emojis 😀</button>
+    <><button className="side" onClick={()=>setChatOpen(!chatOpen)}>Chat 💬</button>
     <button className="cta" disabled={dis} onClick={act}>{label}</button>
-    <button className="side" disabled={!on} onClick={()=>{voice.current!.mute(!muted);setMuted(!muted);}}>{on?(muted?'Unmute 🔈':'Mute 🔇'):'Voice off'}</button></>
+    <button className="side" onClick={()=>setPick(!pick)}>Emojis 😀</button></>
    )}
   </div>
+  {chatOpen&&<div className="chat-drawer"><div className="chat-head"><span>Game Chat 💬</span><button onClick={()=>setChatOpen(false)}>✕</button></div>
+   <div className="quick-chats">{QUICK.map(q=><button key={q} onClick={()=>sendChat(q)}>{q}</button>)}</div>
+   <div className="chat-list">{chats.length===0?<div style={{color:'#8ea2cc',fontSize:'.78rem',textAlign:'center',padding:'8px 0'}}>No messages yet. Send a quick chat!</div>:chats.map((c,i)=><div key={i} className="chat-item"><b style={{color:COL[c.color]}}>{c.name}:</b><span>{c.text}</span></div>)}</div>
+   <form className="chat-form" onSubmit={e=>{e.preventDefault();sendChat(msg);}}><input className="chat-input" placeholder="Type a message…" value={msg} maxLength={60} onChange={e=>setMsg(e.target.value)}/><button type="submit" className="chat-send">Send</button></form></div>}
   {g.status==='done'&&<div className="modal"><div className="sheet"><div className="trophy">🏆</div><h2 style={{color:COL[g.winner!]}}>{win?.name} wins!</h2>
    {me&&<p className="sub">{g.winner===mc?'+60':'+10'} 🪙 earned</p>}{host&&<button className="cta" onClick={()=>send({t:'again'})}>PLAY AGAIN</button>}{!host&&<p className="sub">Waiting for the host to start another game…</p>}<button className="alt" onClick={leave}>Leave room</button></div></div>}</div>;}

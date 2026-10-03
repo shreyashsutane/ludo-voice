@@ -49,11 +49,14 @@ export class Room extends DurableObject{
   if(!cur.bot){
    cur.miss=(cur.miss||0)+1;
    if(cur.miss>=2)cur.bot=true;
-  }
-  if(g.roll===null)doRoll(g,1+rnd(6));
-  if(g.status==='playing'&&g.roll!==null){
-   const mv=legal(g.tokens[cur.color],g.roll);
-   if(mv.length>0)doMove(g,mv[rnd(mv.length)]);
+   g.roll=null;g.msg=`${cur.name} timed out`;
+   g.turn=(g.turn+1)%g.players.length;
+  }else{
+   if(g.roll===null)doRoll(g,1+rnd(6));
+   if(g.status==='playing'&&g.roll!==null){
+    const mv=legal(g.tokens[cur.color],g.roll);
+    if(mv.length>0)doMove(g,mv[rnd(mv.length)]);
+   }
   }
   arm(g);
   await this.save(g);
@@ -69,6 +72,7 @@ export class Room extends DurableObject{
   if(!me)return;
   if(m.t==='sig'){const s=JSON.stringify({t:'sig',from:me,data:m.data});for(const o of this.ctx.getWebSockets())if(o!==ws&&(!m.to||this.pid(o)===m.to))try{o.send(s);}catch{}return;}
   if(m.t==='emo'){if(EMO.includes(m.e))this.bcast({t:'emo',pid:me,e:m.e});return;}
+  if(m.t==='chat'){const txt=String(m.text||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,60);if(txt){let g:Game=(await this.ctx.storage.get<Game>('g'))??newGame();const p=g.players.find(q=>q.id===me);this.bcast({t:'chat',pid:me,name:p?.name||'Player',text:txt,color:p?.color??0});}return;}
   let g:Game=(await this.ctx.storage.get<Game>('g'))??newGame();
   const cur=g.players[g.turn];
   if(m.t==='join'){const name=String(m.name??'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,14)||'Player';

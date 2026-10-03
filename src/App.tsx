@@ -9,10 +9,12 @@ const HOME=[[1,7,1,0],[7,1,0,1],[13,7,-1,0],[7,13,0,-1]];
 const PIPS=[[],[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]],EMO=['😂','😎','😡','👏','😭','🔥'];
 const QUICK=['Hello! 👋','Good game! 🤝','Well played! 👏','Roll a 6! 🎲','Nice move! 🔥','Oops! 😅'];
 const yard=(c:number)=>[c===1||c===2?9:0,c>=2?9:0];
+const WIN_SLOTS:[number,number][]=[[6.42,6.42],[8.58,6.42],[8.58,8.32],[6.42,8.32]];
 function pos(c:number,p:number,i:number):[number,number]{
  if(p===-1){const [ox,oy]=yard(c);return[ox+2+(i%2)*2,oy+2+Math.floor(i/2)*2];}
  if(p<=50){const [x,y]=PATH[(START[c]+p)%52];return[x+.5,y+.5];}
- const h=HOME[c],k=Math.min(p-51,5);return[h[0]+h[2]*k+.5,h[1]+h[3]*k+.5];}
+ if(p<=55){const h=HOME[c],k=p-51;return[h[0]+h[2]*k+.5,h[1]+h[3]*k+.5];}
+ const [bx,by]=WIN_SLOTS[c];return[bx+(i%2===0?-0.16:0.16),by+(i<2?-0.16:0.16)];}
 const key=localStorage.lk||(localStorage.lk=crypto.randomUUID().replace(/-/g,''));
 const clean=(s:string)=>s.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
 const makeCode=()=>{const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';return[...crypto.getRandomValues(new Uint8Array(6))].map(x=>a[x%a.length]).join('');};
@@ -145,7 +147,7 @@ export default function App(){
    <div className="ci"><b>{p?p.name:'Waiting…'}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
- renderTokens.forEach((ts,c)=>{if(!g.players.some(p=>p.color===c))return;ts.forEach((p,i)=>{if(p>=0&&!(stepping?.c===c&&stepping?.i===i)){const [x,y]=pos(c,p,i);const k=x+','+y;seen[k]=(seen[k]||0)+1;}});});
+ renderTokens.forEach((ts,c)=>{if(!g.players.some(p=>p.color===c))return;ts.forEach((p,i)=>{if(p>=0&&p<56&&!(stepping?.c===c&&stepping?.i===i)){const [x,y]=pos(c,p,i);const k=x+','+y;seen[k]=(seen[k]||0)+1;}});});
  return<div className="game">{!online&&<div className="banner">Reconnecting…</div>}{toast&&<div className="toast">{toast}</div>}
   <header><button className="ic" onClick={leave} title="Leave room">←</button>
   <div className="ttl">LUDO <span>ONLINE</span><small onClick={share} style={{cursor:'pointer'}} title="Tap to share invite link">Room {room} 🔗</small></div>
@@ -159,16 +161,18 @@ export default function App(){
    {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?COL[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
    {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,COL[c],`h${c}${k}`)))}
    <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?COL[cur?.color??0]:"#253554"} strokeWidth={mine&&g.roll===null?".08":".06"}/>
+   {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
+    const isWon=p===56;
+    if(p>=0&&!isWon&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
+    const can=c===mc&&movable.includes(i);
+    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);send({t:'move',i});}}}>{can&&<circle r={.5} className="ring"/>}
+     <circle r={isWon?.22:(isHop?.44:.36)} fill={COL[c]} stroke={isWon?"#ffb020":"#0b1220"} strokeWidth={isWon?".04":".07"} style={{transition:'r .18s ease'}}/>
+     {isWon?<text fontSize=".2" textAnchor="middle" dy=".07" fill="#fff" fontWeight="900">★</text>:<circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/>}</g>;}))}
    {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
     return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
      <rect x={6.82} y={6.52} width={1.36} height={1.36} rx={.28} fill="#f4f8ff" stroke="#b0c4e8" strokeWidth=".03"/>
      {PIPS[dispV].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?COL[g.last.color]:"#16213a"}/>)}</g>;})()}
    <text x={7.5} y={8.55} fontSize=".28" fontWeight="700" textAnchor="middle" fill={mine&&g.roll===null?"#3ff0a0":"#9fb3d9"}>{cap}</text>
-   {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
-    if(p>=0&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
-    const can=c===mc&&movable.includes(i);
-    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);send({t:'move',i});}}}>{can&&<circle r={.5} className="ring"/>}
-     <circle r={isHop?.44:.36} fill={COL[c]} stroke="#0b1220" strokeWidth=".07" style={{transition:'r .18s ease'}}/><circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/></g>;}))}
   </svg></div>
   <div className="cards">{card(3)}{card(2)}</div>
   {pick&&<div className="picker">{EMO.map(e=><button key={e} onClick={()=>{send({t:'emo',e});setPick(false);}}>{e}</button>)}</div>}

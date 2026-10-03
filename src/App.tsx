@@ -33,6 +33,23 @@ export default function App(){
  const prev=useRef<Game|null>(null);const counted=useRef('');const cfgRef=useRef(cfg);
  const send=(m:any)=>ws.current?.readyState===1&&ws.current.send(JSON.stringify(m));
  const sendChat=(t:string)=>{const cleanT=t.trim().slice(0,60);if(!cleanT)return;send({t:'chat',text:cleanT});setMsg('');sfx('chat',cfgRef.current.sound);};
+ const [rolling,setRolling]=useState(false);const [rollFace,setRollFace]=useState<number|null>(null);
+ const [landed,setLanded]=useState(false);const rollTimer=useRef<any>(null);const landTimer=useRef<any>(null);
+ const startRollAnim=()=>{
+  clearTimeout(rollTimer.current);clearTimeout(landTimer.current);
+  setRolling(true);setLanded(false);
+  const start=Date.now();
+  const shuffle=()=>{
+   if(Date.now()-start<420){
+    setRollFace(1+Math.floor(Math.random()*6));
+    rollTimer.current=setTimeout(shuffle,45);
+   }else{
+    setRolling(false);setRollFace(null);setLanded(true);
+    landTimer.current=setTimeout(()=>setLanded(false),280);
+   }
+  };
+  shuffle();
+ };
  const say=(t:string)=>{setToast(t);setTimeout(()=>setToast(''),2200);};
  useEffect(()=>{cfgRef.current=cfg;localStorage.cfg=JSON.stringify(cfg);},[cfg]);
  useEffect(()=>{localStorage.st=JSON.stringify(st);},[st]);useEffect(()=>{localStorage.name=name;},[name]);
@@ -80,10 +97,10 @@ export default function App(){
      sfx('chat',cfgRef.current.sound);
      setTimeout(()=>setBubble(o=>{const n={...o};delete n[m.pid];return n;}),3500);};};
    w.onclose=()=>{setOnline(false);clearInterval(ping);if(!dead)t=setTimeout(open,1500);};};open();
-  return()=>{dead=true;clearTimeout(t);clearTimeout(animTimer.current);clearTimeout(autoTimer.current);isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;};},[room,go]);
+  return()=>{dead=true;clearTimeout(t);clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;};},[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
   if(g.status==='done'&&p.status!=='done')sfx('win',cfg.sound);
-  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn))sfx('roll',cfg.sound);
+  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn)){sfx('roll',cfg.sound);startRollAnim();}
   if(g.turn!==p.turn&&cur?.id===myId&&g.status==='playing'){sfx('turn',cfg.sound);if(cfg.vibe)navigator.vibrate?.(120);}
   if(g.status==='done'&&g.gid&&counted.current!==g.gid){counted.current=g.gid;const me=g.players.find(q=>q.id===myId);
    if(me){const w=g.winner===me.color;setSt(s=>({...s,games:s.games+1,wins:s.wins+(w?1:0),coins:s.coins+10+(w?50:0)}));}}},[g]);
@@ -94,7 +111,7 @@ export default function App(){
  },[g?.status,g?.roll,g?.turn,animating,myId,cfg.automove]);
  const enter=(r:string)=>{r=clean(r);if(!name.trim()||r.length!==6){setErr('Enter your name and a 6-character room code');return;}
   setErr('');location.hash=r;setRoom(r);setGo(true);};
- const leave=()=>{if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
+ const leave=()=>{if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
  const toggleVoice=async()=>{if(!voice.current){setErr('Still connecting. Try again in a moment.');return;}try{if(on){voice.current.stop();setOn(false);}else{await voice.current.start();setOn(true);setMuted(false);setErr('');}}catch{setErr('Microphone blocked. Allow mic access and retry.');}};
  const T=THEMES[st.theme]||THEMES[0],L=level(st);
  if(!g){if(go)return<div className="scr center"><div className="spin"/><p>Connecting to room {room}…</p><button className="alt" onClick={leave}>Cancel</button></div>;
@@ -111,7 +128,7 @@ export default function App(){
  const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
  const movable=!animating&&mine&&g.roll!==null?mvs:[];
  const seen:Record<string,number>={};const secs=Math.max(0,Math.ceil((g.deadline-now)/1000));
- let label='ROLL DICE',dis=true,act=()=>{initAudio();sfx('roll',cfg.sound);send({t:'roll'});},cap='';
+ let label='ROLL DICE',dis=true,act=()=>{initAudio();sfx('roll',cfg.sound);startRollAnim();send({t:'roll'});},cap='';
  if(g.status==='lobby'){
   const solo=g.players.length===1;
   label=host?(solo?'START (WITH BOTS)':'START GAME'):'WAITING FOR HOST';
@@ -119,7 +136,7 @@ export default function App(){
   act=()=>send({t:'start'});
   cap=`${g.players.length}/4 joined`;
  }
- else if(g.status==='playing'){const can=!animating&&mine&&g.roll===null;label=can?'ROLL DICE':mine?(animating?'MOVING…':(isOne&&cfg.automove?'AUTO-MOVING…':'PICK A TOKEN')):`${cur.name.toUpperCase()}'S TURN`;dis=!can;cap=mine?(g.roll===null?'Your turn':(animating?'Moving forward…':(isOne&&cfg.automove?'Auto-moving…':'Tap a glowing token'))):`${cur.name}'s turn`;}
+ else if(g.status==='playing'){const can=!animating&&mine&&g.roll===null&&!rolling;label=can?'ROLL DICE':mine?(animating?'MOVING…':(rolling?'ROLLING…':(isOne&&cfg.automove?'AUTO-MOVING…':'PICK A TOKEN'))):`${cur.name.toUpperCase()}'S TURN`;dis=!can;cap=mine?(rolling?'Rolling dice…':(g.roll===null?'Your turn':(animating?'Moving forward…':(isOne&&cfg.automove?'Auto-moving…':'Tap a glowing token')))):`${cur.name}'s turn`;}
  else{label=host?'PLAY AGAIN':'GAME OVER';dis=!host;act=()=>send({t:'again'});cap=`${NAME[g.winner!]} wins!`;}
  const share=()=>{if(navigator.share)navigator.share({title:'Ludo Online',url:location.href}).catch(()=>{});else{navigator.clipboard?.writeText(location.href);say('Invite link copied');}};
  const cell=(x:number,y:number,f:string,k:string,star=false)=><g key={k}><rect x={x+.06} y={y+.06} width={.88} height={.88} rx={.14} fill={f} className="cell"/>{star&&<text x={x+.5} y={y+.72} fontSize=".6" textAnchor="middle" fill="#ffb020">★</text>}</g>;
@@ -142,9 +159,10 @@ export default function App(){
    {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?COL[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
    {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,COL[c],`h${c}${k}`)))}
    <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?COL[cur?.color??0]:"#253554"} strokeWidth={mine&&g.roll===null?".08":".06"}/>
-   <g key={`${g.last?.color}${g.last?.v}${g.turn}`} className={"dice"+(mine&&g.roll===null?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
-    <rect x={6.82} y={6.52} width={1.36} height={1.36} rx={.26} fill="#f4f8ff" stroke="#b0c4e8" strokeWidth=".03"/>
-    {PIPS[g.last?.v??0].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?COL[g.last.color]:"#16213a"}/>)}</g>
+   {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
+    return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
+     <rect x={6.82} y={6.52} width={1.36} height={1.36} rx={.28} fill="#f4f8ff" stroke="#b0c4e8" strokeWidth=".03"/>
+     {PIPS[dispV].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?COL[g.last.color]:"#16213a"}/>)}</g>;})()}
    <text x={7.5} y={8.55} fontSize=".28" fontWeight="700" textAnchor="middle" fill={mine&&g.roll===null?"#3ff0a0":"#9fb3d9"}>{cap}</text>
    {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
     if(p>=0&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}

@@ -33,12 +33,19 @@ export function sfx(k:'roll'|'cap'|'turn'|'win'|'step'|'chat',on:boolean){if(!on
   g2.gain.setValueAtTime(0.01,t);g2.gain.linearRampToValueAtTime(0.20,t+0.004);g2.gain.exponentialRampToValueAtTime(0.001,t+0.065);
   o2.connect(g2);g2.connect(ac.destination);o2.start(t);o2.stop(t+0.07);return;}
  if(k==='roll'){
-  const taps=[{f:720,d:0.04,o:0.00},{f:880,d:0.04,o:0.045},{f:640,d:0.045,o:0.09},{f:780,d:0.05,o:0.14}];
-  taps.forEach(({f,d,o})=>{
-   const osc=ac!.createOscillator(),g=ac!.createGain();osc.type='triangle';
-   osc.frequency.setValueAtTime(f,t+o);osc.frequency.exponentialRampToValueAtTime(f*0.68,t+o+d);
-   g.gain.setValueAtTime(0.01,t+o);g.gain.linearRampToValueAtTime(0.24,t+o+0.004);g.gain.exponentialRampToValueAtTime(0.001,t+o+d);
-   osc.connect(g);g.connect(ac!.destination);osc.start(t+o);osc.stop(t+o+d+0.01);});return;}
+  const bounces=[{o:0.00,g:0.28,f:880,w:420},{o:0.065,g:0.22,f:1080,w:360},{o:0.13,g:0.17,f:760,w:480},{o:0.19,g:0.12,f:950,w:320},{o:0.25,g:0.07,f:820,w:390}];
+  const len=Math.floor(ac.sampleRate*0.035),nb=ac.createBuffer(1,len,ac.sampleRate),d=nb.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(len*0.35));
+  bounces.forEach(b=>{
+   const bt=t+b.o;
+   const src=ac!.createBufferSource(),bf=ac!.createBiquadFilter(),bg=ac!.createGain();
+   src.buffer=nb;bf.type='bandpass';bf.frequency.setValueAtTime(b.f,bt);bf.Q.value=2.0;
+   bg.gain.setValueAtTime(b.g*0.65,bt);bg.gain.exponentialRampToValueAtTime(0.001,bt+0.032);
+   src.connect(bf);bf.connect(bg);bg.connect(ac!.destination);src.start(bt);
+   const wo=ac!.createOscillator(),wg=ac!.createGain();wo.type='triangle';
+   wo.frequency.setValueAtTime(b.w,bt);wo.frequency.exponentialRampToValueAtTime(b.w*0.65,bt+0.038);
+   wg.gain.setValueAtTime(0.01,bt);wg.gain.linearRampToValueAtTime(b.g*0.85,bt+0.003);wg.gain.exponentialRampToValueAtTime(0.001,bt+0.04);
+   wo.connect(wg);wg.connect(ac!.destination);wo.start(bt);wo.stop(bt+0.042);});return;}
  if(k==='turn'){
   [[783.99,0],[1046.50,0.14]].forEach(([freq,offset])=>{
    const o=ac!.createOscillator(),g=ac!.createGain();o.type='sine';o.frequency.value=freq;

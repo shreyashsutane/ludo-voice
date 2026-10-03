@@ -8,44 +8,56 @@ export const loadStats=():Stats=>({games:0,wins:0,coins:0,av:AV[0],theme:0,owned
 export const loadCfg=():Cfg=>({sound:true,vibe:true,automove:true,...parse('cfg')});
 export const level=(s:Stats)=>{const xp=s.games*10+s.wins*40,l=Math.floor(Math.sqrt(xp/20))+1,lo=(l-1)**2*20,hi=l*l*20;return{l,pct:Math.round((xp-lo)/(hi-lo)*100)};};
 let ac:AudioContext|undefined;
+export function initAudio(){
+ try{
+  ac=ac||new (window.AudioContext||(window as any).webkitAudioContext)();
+  if(ac.state==='suspended')ac.resume();
+ }catch{}
+}
+if(typeof window!=='undefined'){
+ const unlock=()=>{initAudio();};
+ window.addEventListener('pointerdown',unlock,{passive:true});
+ window.addEventListener('touchstart',unlock,{passive:true});
+ window.addEventListener('click',unlock,{passive:true});
+}
 export function sfx(k:'roll'|'cap'|'turn'|'win'|'step'|'chat',on:boolean){if(!on)return;try{
- ac=ac||new (window.AudioContext||(window as any).webkitAudioContext)();
- if(ac.state==='suspended'){ac.resume();}
+ initAudio();if(!ac)return;
  const t=ac.currentTime;
  if(k==='step'){
-  const o1=ac.createOscillator(),g1=ac.createGain();o1.type='sine';
-  o1.frequency.setValueAtTime(360,t);o1.frequency.exponentialRampToValueAtTime(260,t+0.06);
-  g1.gain.setValueAtTime(0.001,t);g1.gain.linearRampToValueAtTime(0.09,t+0.004);g1.gain.exponentialRampToValueAtTime(0.0001,t+0.065);
-  o1.connect(g1);g1.connect(ac.destination);o1.start(t);o1.stop(t+0.07);
-  const o2=ac.createOscillator(),g2=ac.createGain();o2.type='triangle';
-  o2.frequency.setValueAtTime(540,t);o2.frequency.exponentialRampToValueAtTime(180,t+0.03);
-  g2.gain.setValueAtTime(0.001,t);g2.gain.linearRampToValueAtTime(0.04,t+0.003);g2.gain.exponentialRampToValueAtTime(0.0001,t+0.035);
-  o2.connect(g2);g2.connect(ac.destination);o2.start(t);o2.stop(t+0.04);return;}
+  const o1=ac.createOscillator(),g1=ac.createGain();o1.type='triangle';
+  o1.frequency.setValueAtTime(620,t);o1.frequency.exponentialRampToValueAtTime(360,t+0.08);
+  g1.gain.setValueAtTime(0.01,t);g1.gain.linearRampToValueAtTime(0.30,t+0.005);g1.gain.exponentialRampToValueAtTime(0.001,t+0.085);
+  o1.connect(g1);g1.connect(ac.destination);o1.start(t);o1.stop(t+0.09);
+  const o2=ac.createOscillator(),g2=ac.createGain();o2.type='sine';
+  o2.frequency.setValueAtTime(310,t);o2.frequency.exponentialRampToValueAtTime(180,t+0.06);
+  g2.gain.setValueAtTime(0.01,t);g2.gain.linearRampToValueAtTime(0.20,t+0.004);g2.gain.exponentialRampToValueAtTime(0.001,t+0.065);
+  o2.connect(g2);g2.connect(ac.destination);o2.start(t);o2.stop(t+0.07);return;}
  if(k==='roll'){
-  [0,0.045,0.095].forEach((offset,idx)=>{
-   const pitch=[320,280,360][idx];const o=ac!.createOscillator(),g=ac!.createGain();o.type='sine';
-   o.frequency.setValueAtTime(pitch,t+offset);o.frequency.exponentialRampToValueAtTime(pitch*0.75,t+offset+0.04);
-   g.gain.setValueAtTime(0.001,t+offset);g.gain.linearRampToValueAtTime(0.06,t+offset+0.003);g.gain.exponentialRampToValueAtTime(0.0001,t+offset+0.045);
-   o.connect(g);g.connect(ac!.destination);o.start(t+offset);o.stop(t+offset+0.05);});return;}
+  const taps=[{f:720,d:0.04,o:0.00},{f:880,d:0.04,o:0.045},{f:640,d:0.045,o:0.09},{f:780,d:0.05,o:0.14}];
+  taps.forEach(({f,d,o})=>{
+   const osc=ac!.createOscillator(),g=ac!.createGain();osc.type='triangle';
+   osc.frequency.setValueAtTime(f,t+o);osc.frequency.exponentialRampToValueAtTime(f*0.68,t+o+d);
+   g.gain.setValueAtTime(0.01,t+o);g.gain.linearRampToValueAtTime(0.24,t+o+0.004);g.gain.exponentialRampToValueAtTime(0.001,t+o+d);
+   osc.connect(g);g.connect(ac!.destination);osc.start(t+o);osc.stop(t+o+d+0.01);});return;}
  if(k==='turn'){
-  [[659.25,0],[987.77,0.12]].forEach(([freq,offset])=>{
+  [[783.99,0],[1046.50,0.14]].forEach(([freq,offset])=>{
    const o=ac!.createOscillator(),g=ac!.createGain();o.type='sine';o.frequency.value=freq;
-   g.gain.setValueAtTime(0.001,t+offset);g.gain.linearRampToValueAtTime(0.08,t+offset+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t+offset+0.45);
-   o.connect(g);g.connect(ac!.destination);o.start(t+offset);o.stop(t+offset+0.46);});return;}
+   g.gain.setValueAtTime(0.01,t+offset);g.gain.linearRampToValueAtTime(0.22,t+offset+0.015);g.gain.exponentialRampToValueAtTime(0.001,t+offset+0.42);
+   o.connect(g);g.connect(ac!.destination);o.start(t+offset);o.stop(t+offset+0.45);});return;}
  if(k==='cap'){
-  const o=ac.createOscillator(),g=ac.createGain();o.type='sine';
-  o.frequency.setValueAtTime(420,t);o.frequency.exponentialRampToValueAtTime(220,t+0.12);
-  g.gain.setValueAtTime(0.001,t);g.gain.linearRampToValueAtTime(0.09,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.13);
+  const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';
+  o.frequency.setValueAtTime(520,t);o.frequency.exponentialRampToValueAtTime(220,t+0.12);
+  g.gain.setValueAtTime(0.01,t);g.gain.linearRampToValueAtTime(0.25,t+0.005);g.gain.exponentialRampToValueAtTime(0.001,t+0.13);
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+0.14);return;}
  if(k==='win'){
-  [[523.25,0],[659.25,0.12],[783.99,0.24],[987.77,0.36],[1046.50,0.50]].forEach(([freq,offset])=>{
+  [[523.25,0],[659.25,0.11],[783.99,0.22],[987.77,0.33],[1046.50,0.46]].forEach(([freq,offset])=>{
    const o=ac!.createOscillator(),g=ac!.createGain();o.type='sine';o.frequency.value=freq;
-   g.gain.setValueAtTime(0.001,t+offset);g.gain.linearRampToValueAtTime(0.07,t+offset+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+offset+0.42);
-   o.connect(g);g.connect(ac!.destination);o.start(t+offset);o.stop(t+offset+0.45);});return;}
+   g.gain.setValueAtTime(0.01,t+offset);g.gain.linearRampToValueAtTime(0.20,t+offset+0.012);g.gain.exponentialRampToValueAtTime(0.001,t+offset+0.40);
+   o.connect(g);g.connect(ac!.destination);o.start(t+offset);o.stop(t+offset+0.42);});return;}
  if(k==='chat'){
   const o=ac.createOscillator(),g=ac.createGain();o.type='sine';
-  o.frequency.setValueAtTime(480,t);o.frequency.exponentialRampToValueAtTime(740,t+0.06);
-  g.gain.setValueAtTime(0.001,t);g.gain.linearRampToValueAtTime(0.06,t+0.005);g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);
+  o.frequency.setValueAtTime(520,t);o.frequency.exponentialRampToValueAtTime(840,t+0.07);
+  g.gain.setValueAtTime(0.01,t);g.gain.linearRampToValueAtTime(0.20,t+0.005);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+0.09);return;}}catch{}}
 const TABS=[['home','🏠','Home'],['profile','👤','Profile'],['shop','🛍','Shop'],['ranks','🏆','Ranks'],['settings','⚙️','Settings']];
 export const TabBar=({tab,set}:{tab:string;set:(t:string)=>void})=><nav className="tabs">{TABS.map(([k,i,l])=><button key={k} className={tab===k?'on':''} onClick={()=>set(k)}><span>{i}</span>{l}</button>)}</nav>;

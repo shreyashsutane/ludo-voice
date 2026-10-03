@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {Game,START,SAFE,legal} from './engine';import {Voice} from './voice';
-import {THEMES,Stats,Cfg,loadStats,loadCfg,level,sfx,TabBar,Profile,Shop,Ranks,Settings} from './ui';
+import {THEMES,Stats,Cfg,loadStats,loadCfg,level,sfx,initAudio,TabBar,Profile,Shop,Ranks,Settings} from './ui';
 const COL=['#ff4757','#22d37a','#3b82f6','#f5b800'],NAME=['Red','Green','Blue','Yellow'];
 const PATH:[number,number][]=(()=>{let [x,y]=[1,6];const o:[number,number][]=[[x,y]];
  const D:any={R:[1,0],L:[-1,0],U:[0,-1],D:[0,1],a:[1,-1],b:[1,1],c:[-1,1],d:[-1,-1]};
@@ -83,7 +83,7 @@ export default function App(){
   return()=>{dead=true;clearTimeout(t);clearTimeout(animTimer.current);clearTimeout(autoTimer.current);isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;};},[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
   if(g.status==='done'&&p.status!=='done')sfx('win',cfg.sound);
-  else if(g.status==='playing'&&g.roll!==null&&p.roll===null)sfx('roll',cfg.sound);
+  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn))sfx('roll',cfg.sound);
   if(g.turn!==p.turn&&cur?.id===myId&&g.status==='playing'){sfx('turn',cfg.sound);if(cfg.vibe)navigator.vibrate?.(120);}
   if(g.status==='done'&&g.gid&&counted.current!==g.gid){counted.current=g.gid;const me=g.players.find(q=>q.id===myId);
    if(me){const w=g.winner===me.color;setSt(s=>({...s,games:s.games+1,wins:s.wins+(w?1:0),coins:s.coins+10+(w?50:0)}));}}},[g]);
@@ -111,7 +111,7 @@ export default function App(){
  const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
  const movable=!animating&&mine&&g.roll!==null?mvs:[];
  const seen:Record<string,number>={};const secs=Math.max(0,Math.ceil((g.deadline-now)/1000));
- let label='ROLL DICE',dis=true,act=()=>send({t:'roll'}),cap='';
+ let label='ROLL DICE',dis=true,act=()=>{initAudio();sfx('roll',cfg.sound);send({t:'roll'});},cap='';
  if(g.status==='lobby'){
   const solo=g.players.length===1;
   label=host?(solo?'START (WITH BOTS)':'START GAME'):'WAITING FOR HOST';
@@ -149,7 +149,7 @@ export default function App(){
    {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
     if(p>=0&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
     const can=c===mc&&movable.includes(i);
-    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);can&&!animating&&send({t:'move',i});}}>{can&&<circle r={.5} className="ring"/>}
+    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);send({t:'move',i});}}}>{can&&<circle r={.5} className="ring"/>}
      <circle r={isHop?.44:.36} fill={COL[c]} stroke="#0b1220" strokeWidth=".07" style={{transition:'r .18s ease'}}/><circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/></g>;}))}
   </svg></div>
   <div className="cards">{card(3)}{card(2)}</div>

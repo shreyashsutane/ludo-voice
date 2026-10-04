@@ -265,6 +265,9 @@ export default function App(){
       <button className="alt" style={{border:'1.5px solid #38bdf8',background:'rgba(16,36,70,.7)',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',fontWeight:800,fontSize:'.95rem',padding:'12px',color:'#fff'}} onClick={()=>setPassSetup(true)}>
        📱 PASS & PLAY (1 PHONE)
       </button>
+      <a href="/docs.html" target="_blank" rel="noopener noreferrer" className="alt" style={{border:'1.5px solid rgba(168,85,247,.6)',background:'rgba(30,18,50,.7)',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',fontWeight:700,fontSize:'.86rem',padding:'10px',color:'#e2d4f8',textDecoration:'none'}}>
+       📖 OPEN SYSTEM DOCS (10 PAGES)
+      </a>
      </>
     )}
     {err&&<p className="err">{err}</p>}

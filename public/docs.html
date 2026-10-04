@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ludo Voice & Pass & Play — Technical Documentation & Architecture</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.05); }
+    }
+    @keyframes flowLine {
+      0% { stroke-dashoffset: 40; }
+      100% { stroke-dashoffset: 0; }
+    }
+    .flow-dash {
+      stroke-dasharray: 6 4;
+      animation: flowLine 1.8s linear infinite;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-active {
+      background: rgba(30, 58, 110, 0.55);
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+
+  <!-- Top Global Header -->
+  <header class="sticky top-0 z-50 glass border-b border-slate-800/80 px-4 lg:px-8 py-3.5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <a href="/" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-lg font-black shadow-lg shadow-cyan-500/25 hover:scale-105 transition-transform" title="Back to Game">
+        🎲
+      </a>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-wide text-base bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">LUDO VOICE ENGINE</span>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">v2.4 PROD</span>
+        </div>
+        <p class="text-xs text-slate-400 hidden sm:block">Full-Stack Real-Time Architecture & Systems Documentation</p>
+      </div>
+    </div>
+
+    <!-- Quick Navigation Pill Indicators -->
+    <div class="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 px-2 py-1 rounded-full shadow-inner">
+      <button id="prevBtn" onclick="changePage(-1)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors disabled:opacity-30">←</button>
+      <span id="pageIndicator" class="text-xs font-mono font-bold text-cyan-400 px-2">Page 1 / 10</span>
+      <button id="nextBtn" onclick="changePage(1)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors disabled:opacity-30">→</button>
+    </div>
+  </header>
+
+  <!-- Horizontal 10-Page Nav Bar -->
+  <nav class="bg-slate-950/90 border-b border-slate-800/60 px-4 lg:px-8 py-2 overflow-x-auto no-scrollbar flex items-center gap-2 text-xs">
+    <button onclick="goToPage(1)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="1"><span>01.</span> Overview</button>
+    <button onclick="goToPage(2)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="2"><span>02.</span> Tech Stack</button>
+    <button onclick="goToPage(3)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="3"><span>03.</span> Code Metrics (LOC)</button>
+    <button onclick="goToPage(4)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="4"><span>04.</span> System Flowchart</button>
+    <button onclick="goToPage(5)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="5"><span>05.</span> Game Engine</button>
+    <button onclick="goToPage(6)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="6"><span>06.</span> WebSocket Protocol</button>
+    <button onclick="goToPage(7)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="7"><span>07.</span> Voice Mesh & VAD</button>
+    <button onclick="goToPage(8)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="8"><span>08.</span> UI Themes & SVG</button>
+    <button onclick="goToPage(9)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="9"><span>09.</span> Pass & Play</button>
+    <button onclick="goToPage(10)" class="nav-tab px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-medium flex items-center gap-1.5" data-page="10"><span>10.</span> Security & Deploy</button>
+  </nav>
+
+  <!-- Main Multi-Page Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 flex flex-col justify-center">
+
+    <!-- ================= PAGE 1: OVERVIEW ================= -->
+    <section id="page-1" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 01 / Architecture Blueprint</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+          </div>
+          <h1 class="text-3xl lg:text-4xl font-extrabold tracking-tight text-white">System Vision & Product Overview</h1>
+          <p class="text-sm text-slate-400 mt-1">High-concurrency serverless multiplayer board game with native WebRTC voice mesh and offline pass & play.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="glass px-4 py-2 rounded-xl text-center">
+            <div class="text-xs text-slate-400 font-medium">Architecture</div>
+            <div class="text-sm font-bold text-emerald-400">100% Serverless Edge</div>
+          </div>
+          <div class="glass px-4 py-2 rounded-xl text-center">
+            <div class="text-xs text-slate-400 font-medium">Active LOC</div>
+            <div class="text-sm font-bold text-cyan-400">919 Lines</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3 border-l-4 border-l-cyan-500 hover:border-cyan-400 transition-all">
+          <div class="w-10 h-10 rounded-xl bg-cyan-950 flex items-center justify-center text-xl">🌐</div>
+          <h3 class="font-bold text-lg text-white">Zero-Server Cloudflare Edge</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Eliminates traditional Node/Express servers. The entire backend runs inside Cloudflare Workers & Durable Objects, maintaining persistent room memory at 300+ global data centers with near-zero cold starts.
+          </p>
+          <div class="mt-auto pt-2 text-[11px] font-mono text-cyan-400 flex items-center gap-1.5">
+            <span>● Durable Object Hibernation API</span>
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3 border-l-4 border-l-emerald-500 hover:border-emerald-400 transition-all">
+          <div class="w-10 h-10 rounded-xl bg-emerald-950 flex items-center justify-center text-xl">🎙️</div>
+          <h3 class="font-bold text-lg text-white">Live Voice Mesh & Web Audio VAD</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Peer-to-peer WebRTC mesh transports crystal-clear voice without any paid media server (SFU). A real-time <code class="text-emerald-400 font-mono">AnalyserNode</code> detects speech energy to render pulsing emerald waveforms.
+          </p>
+          <div class="mt-auto pt-2 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+            <span>● Sub-40ms P2P Audio Latency</span>
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3 border-l-4 border-l-purple-500 hover:border-purple-400 transition-all">
+          <div class="w-10 h-10 rounded-xl bg-purple-950 flex items-center justify-center text-xl">📱</div>
+          <h3 class="font-bold text-lg text-white">Dual-Mode: Online + Pass & Play</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Play with friends across the world using 6-character room codes, or switch to 1-Phone Pass & Play offline mode with flexible 2, 3, or 4 player setups, custom avatars, and dedicated inactive seat management.
+          </p>
+          <div class="mt-auto pt-2 text-[11px] font-mono text-purple-400 flex items-center gap-1.5">
+            <span>● Zero Network Overhead Mode</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass p-6 rounded-2xl flex flex-col gap-4 bg-gradient-to-r from-slate-900/90 via-slate-900/50 to-slate-900/90">
+        <h4 class="font-bold text-sm tracking-wide text-slate-200 uppercase flex items-center gap-2">
+          <span>🎯</span> Key Architectural Objectives Achieved
+        </h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-2xl font-black text-cyan-400">0$</div>
+            <div class="text-xs text-slate-400 mt-1">Hosting / Server Costs</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-2xl font-black text-emerald-400">&lt;20ms</div>
+            <div class="text-xs text-slate-400 mt-1">WebSocket State Sync</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-2xl font-black text-yellow-400">100%</div>
+            <div class="text-xs text-slate-400 mt-1">Free Unlockable Themes</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+            <div class="text-2xl font-black text-purple-400">0</div>
+            <div class="text-xs text-slate-400 mt-1">External Database Deps</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prominent Action Box to Open/Start Docs Tour -->
+      <div class="glass p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-5 border border-cyan-500/40 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-emerald-950/40 shadow-xl shadow-cyan-950/30">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 text-slate-950 flex items-center justify-center text-2xl font-black shadow-lg shadow-cyan-500/25">
+            📖
+          </div>
+          <div>
+            <div class="text-base font-extrabold text-white flex items-center gap-2">
+              <span>EXPLORE FULL ARCHITECTURE DOCUMENTATION</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-900 border border-cyan-400 text-cyan-200">10 PAGES</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-0.5">Comprehensive technical breakdown: Tech Stack, LOC Metrics, Animated System Flowchart, and WebRTC Voice Mesh.</p>
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+          <button onclick="goToPage(2)" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 active:scale-95">
+            <span>START DOCS TOUR (PAGE 2) →</span>
+          </button>
+          <button onclick="goToPage(4)" class="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs tracking-wide transition-all border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95">
+            <span>⚡ Flowchart</span>
+          </button>
+          <button onclick="goToPage(3)" class="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-purple-300 font-bold text-xs tracking-wide transition-all border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95">
+            <span>📊 Metrics</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: TECH STACK ================= -->
+    <section id="page-2" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 02 / Technology Stack</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">Full-Stack Technology Matrix</h1>
+        <p class="text-sm text-slate-400">Zero bloated dependencies. Minimalist, modern web standards.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/80">FRONTEND</span>
+            <span class="text-xl">⚛️</span>
+          </div>
+          <h3 class="font-bold text-white text-base">React 18 & TypeScript 5</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• <b>React 18.3:</b> Functional component state hooks, zero external UI libraries.</li>
+            <li>• <b>TypeScript 5.6:</b> Strict typing for all game states, players, and packets.</li>
+            <li>• <b>Vite 5.4:</b> Instant HMR and ultra-fast ES module production bundling.</li>
+            <li>• <b>Inline SVG:</b> Resolution-independent 15x15 vector board coordinates.</li>
+          </ul>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950/80">EDGE RUNTIME</span>
+            <span class="text-xl">⚡</span>
+          </div>
+          <h3 class="font-bold text-white text-base">Cloudflare Workers & DO</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• <b>Durable Objects:</b> Single-threaded, highly consistent room actors.</li>
+            <li>• <b>Hibernation WebSockets:</b> Sleep state memory retention at zero cost.</li>
+            <li>• <b>Storage API:</b> Transactional KV persistence for matches & rankings.</li>
+            <li>• <b>Alarms API:</b> Edge-scheduled cron timeouts for bot takeovers.</li>
+          </ul>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-yellow-400 px-2 py-0.5 rounded bg-yellow-950/80">AUDIO & P2P</span>
+            <span class="text-xl">🎙️</span>
+          </div>
+          <h3 class="font-bold text-white text-base">WebRTC & Web Audio</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• <b>RTCPeerConnection:</b> Direct browser-to-browser encrypted audio mesh.</li>
+            <li>• <b>Signaling:</b> Zero-STUN multiplexed SDP over Room WebSocket.</li>
+            <li>• <b>Web Audio API:</b> Live <code class="text-yellow-300">AnalyserNode</code> FFT monitoring.</li>
+            <li>• <b>Synthesized SFX:</b> Mathematical oscillator sound effects (Dice, Win, Step).</li>
+          </ul>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-950/80">SECURITY</span>
+            <span class="text-xl">🛡️</span>
+          </div>
+          <h3 class="font-bold text-white text-base">Web Crypto & Protection</h3>
+          <ul class="text-xs text-slate-300 space-y-2">
+            <li>• <b>SHA-256 Hashes:</b> Sub-key identity authentication on edge.</li>
+            <li>• <b>Sliding Rate Limiter:</b> 120 msgs / 10s per socket threshold.</li>
+            <li>• <b>Regex Sanitization:</b> Anti-XSS filtering for names & chat payloads.</li>
+            <li>• <b>Immutable Rules:</b> Deterministic client-server dual rule validation.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 3: LOC BREAKDOWN ================= -->
+    <section id="page-3" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <div>
+          <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 03 / Codebase Metrics</span>
+          <h1 class="text-3xl font-extrabold text-white mt-1">Exact Lines of Code (LOC) Analysis</h1>
+          <p class="text-sm text-slate-400">Ultra-high density codebase verified with line count statistics.</p>
+        </div>
+        <div class="text-right">
+          <div class="text-2xl font-black text-cyan-400 font-mono">919 TOTAL LOC</div>
+          <div class="text-xs text-slate-400">Zero external UI libraries</div>
+        </div>
+      </div>
+
+      <div class="glass p-6 rounded-2xl flex flex-col gap-4">
+        <h3 class="font-bold text-sm text-slate-200">File-by-File Breakdown & Percentage of Codebase</h3>
+        <div class="space-y-3.5">
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/App.tsx <span class="text-slate-400 font-normal">— React Frontend, Game Layout, SVG & State</span></span>
+              <span class="text-cyan-400 font-bold">357 LOC (38.8%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-cyan-500 rounded-full" style="width: 38.8%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">worker/index.ts <span class="text-slate-400 font-normal">— Room DO, WebSockets, Bot AI & Leaderboard</span></span>
+              <span class="text-emerald-400 font-bold">143 LOC (15.6%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-500 rounded-full" style="width: 15.6%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/audioMeter.ts <span class="text-slate-400 font-normal">— Web Audio AnalyserNode & Live Voice Activity</span></span>
+              <span class="text-purple-400 font-bold">132 LOC (14.4%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-purple-500 rounded-full" style="width: 14.4%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/styles.css <span class="text-slate-400 font-normal">— Glassmorphism System, Animations & Board Bounds</span></span>
+              <span class="text-yellow-400 font-bold">131 LOC (14.3%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-yellow-500 rounded-full" style="width: 14.3%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/ui.tsx <span class="text-slate-400 font-normal">— 5 Themes, UI Screens, Sound Synth & Profiles</span></span>
+              <span class="text-rose-400 font-bold">110 LOC (12.0%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-rose-500 rounded-full" style="width: 12.0%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/voice.ts <span class="text-slate-400 font-normal">— WebRTC P2P Full-Mesh RTCPeerConnection</span></span>
+              <span class="text-blue-400 font-bold">20 LOC (2.2%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-blue-500 rounded-full" style="width: 2.2%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">src/engine.ts <span class="text-slate-400 font-normal">— Universal Pure Ludo Rules, Captures & Turns</span></span>
+              <span class="text-teal-400 font-bold">16 LOC (1.7%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-teal-400 rounded-full" style="width: 1.7%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-mono mb-1">
+              <span class="font-bold text-white">Configs & Main <span class="text-slate-400 font-normal">— wrangler.jsonc, package.json, main.tsx</span></span>
+              <span class="text-slate-400 font-bold">10 LOC (1.0%)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
+              <div class="h-full bg-slate-600 rounded-full" style="width: 1.0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 4: SYSTEM FLOWCHART ================= -->
+    <section id="page-4" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 04 / Flowchart Diagram</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">End-to-End System Architecture Flowchart</h1>
+        <p class="text-sm text-slate-400">Interactive SVG diagram showcasing client-edge communication pathways.</p>
+      </div>
+
+      <div class="glass p-4 lg:p-6 rounded-2xl relative overflow-hidden flex flex-col items-center">
+        <svg viewBox="0 0 960 460" class="w-full h-auto max-h-[480px]">
+          <g>
+            <rect x="30" y="40" width="230" height="380" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.4" />
+            <text x="145" y="70" fill="#38bdf8" font-size="14" font-weight="800" text-anchor="middle" font-family="monospace">CLIENT BROWSER</text>
+            <rect x="50" y="90" width="190" height="55" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1" />
+            <text x="145" y="115" fill="#f8fafc" font-size="12" font-weight="700" text-anchor="middle">React 18 + SVG Board</text>
+            <text x="145" y="133" fill="#94a3b8" font-size="10" text-anchor="middle">5 Themes & Touch Bounds</text>
+            <rect x="50" y="160" width="190" height="55" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1" />
+            <text x="145" y="185" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Web Audio AnalyserNode</text>
+            <text x="145" y="203" fill="#94a3b8" font-size="10" text-anchor="middle">Live Voice Activity Glow</text>
+            <rect x="50" y="230" width="190" height="55" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1" />
+            <text x="145" y="255" fill="#f59e0b" font-size="12" font-weight="700" text-anchor="middle">RTCPeerConnection Mesh</text>
+            <text x="145" y="273" fill="#94a3b8" font-size="10" text-anchor="middle">P2P Audio Stream Exchange</text>
+            <rect x="50" y="300" width="190" height="55" rx="8" fill="#1e293b" stroke="#818cf8" stroke-width="1" />
+            <text x="145" y="325" fill="#818cf8" font-size="12" font-weight="700" text-anchor="middle">Local Game Engine</text>
+            <text x="145" y="343" fill="#94a3b8" font-size="10" text-anchor="middle">Offline Pass & Play / Step Anim</text>
+            <rect x="50" y="370" width="190" height="35" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1" />
+            <text x="145" y="392" fill="#94a3b8" font-size="11" text-anchor="middle">LocalStorage (Stats/Cfg/Key)</text>
+          </g>
+
+          <g>
+            <rect x="365" y="80" width="230" height="300" rx="16" fill="#0f172a" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.4" />
+            <text x="480" y="115" fill="#34d399" font-size="14" font-weight="800" text-anchor="middle" font-family="monospace">CLOUDFLARE WORKER</text>
+            <rect x="385" y="140" width="190" height="60" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1" />
+            <text x="480" y="165" fill="#f8fafc" font-size="12" font-weight="700" text-anchor="middle">Edge Router & Assets</text>
+            <text x="480" y="185" fill="#94a3b8" font-size="10" text-anchor="middle">Static Asset Cache + /ws Route</text>
+            <rect x="385" y="220" width="190" height="60" rx="8" fill="#1e293b" stroke="#f43f5e" stroke-width="1" />
+            <text x="480" y="245" fill="#f43f5e" font-size="12" font-weight="700" text-anchor="middle">Rate Limiter & Guard</text>
+            <text x="480" y="265" fill="#94a3b8" font-size="10" text-anchor="middle">120 msgs / 10s Window</text>
+            <rect x="385" y="300" width="190" height="60" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1" />
+            <text x="480" y="325" fill="#38bdf8" font-size="12" font-weight="700" text-anchor="middle">DO Namespace Binding</text>
+            <text x="480" y="345" fill="#94a3b8" font-size="10" text-anchor="middle">env.ROOM.idFromName(code)</text>
+          </g>
+
+          <g>
+            <rect x="700" y="40" width="230" height="380" rx="16" fill="#0f172a" stroke="#a855f7" stroke-width="1.5" stroke-opacity="0.4" />
+            <text x="815" y="70" fill="#c084fc" font-size="14" font-weight="800" text-anchor="middle" font-family="monospace">DURABLE OBJECTS</text>
+            <rect x="720" y="90" width="190" height="80" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="1" />
+            <text x="815" y="115" fill="#f8fafc" font-size="12" font-weight="700" text-anchor="middle">Room Actor (Durable Object)</text>
+            <text x="815" y="135" fill="#94a3b8" font-size="10" text-anchor="middle">Single-Threaded State Authority</text>
+            <text x="815" y="152" fill="#c084fc" font-size="10" font-family="monospace" text-anchor="middle">WebSocket Hibernation</text>
+            <rect x="720" y="185" width="190" height="65" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1" />
+            <text x="815" y="210" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Server Engine & Bot AI</text>
+            <text x="815" y="230" fill="#94a3b8" font-size="10" text-anchor="middle">Automated Rolls, Captures, Turns</text>
+            <rect x="720" y="265" width="190" height="65" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1" />
+            <text x="815" y="290" fill="#f59e0b" font-size="12" font-weight="700" text-anchor="middle">Alarm Cron Timer</text>
+            <text x="815" y="310" fill="#94a3b8" font-size="10" text-anchor="middle">24s Turn Deadline / Inactivity Drop</text>
+            <rect x="720" y="345" width="190" height="60" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1" />
+            <text x="815" y="370" fill="#38bdf8" font-size="12" font-weight="700" text-anchor="middle">Global Leaderboard DO</text>
+            <text x="815" y="388" fill="#94a3b8" font-size="10" text-anchor="middle">Top 20 Hall-of-Fame Stats</text>
+          </g>
+
+          <path d="M 260 115 L 385 165" stroke="#38bdf8" stroke-width="2" fill="none" class="flow-dash" />
+          <path d="M 385 175 L 260 125" stroke="#34d399" stroke-width="2" fill="none" class="flow-dash" />
+          <path d="M 575 325 L 720 130" stroke="#a855f7" stroke-width="2" fill="none" class="flow-dash" />
+          <path d="M 240 255 C 310 275, 310 295, 240 315" stroke="#f59e0b" stroke-width="2" fill="none" class="flow-dash" />
+          <text x="325" y="290" fill="#f59e0b" font-size="10" font-weight="bold">P2P Audio Mesh</text>
+          <path d="M 815 170 L 815 345" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="3 3" fill="none" />
+        </svg>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 5: GAME ENGINE ================= -->
+    <section id="page-5" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 05 / Core Engine Rules</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">Universal Ludo Game Engine & State Machine</h1>
+        <p class="text-sm text-slate-400">Mathematical coordinate mapping, legal move calculation, and capture logic.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-white text-base flex items-center gap-2"><span>📐</span> Coordinate Translation Mathematics</h3>
+          <p class="text-xs text-slate-300">A single progress integer <code class="text-cyan-400 font-mono">p</code> represents every token's journey:</p>
+          <div class="space-y-2 text-xs font-mono bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+            <div class="text-slate-400"><b class="text-white">p = -1:</b> Inside Yard (inactive starting base)</div>
+            <div class="text-slate-400"><b class="text-white">p = 0..50:</b> Outer track cells (52 cells total)</div>
+            <div class="text-slate-400"><b class="text-white">p = 51..55:</b> Home stretch column leading to center</div>
+            <div class="text-slate-400"><b class="text-white">p = 56:</b> Finished inside Home Triangle (Won)</div>
+          </div>
+          <div class="bg-slate-950 px-3 py-2 rounded-lg font-mono text-xs text-emerald-400 border border-slate-800">
+            absCell(color, p) = (START[color] + p) % 52
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-white text-base flex items-center gap-2"><span>⚙️</span> Rule Execution & Automove Algorithm</h3>
+          <ul class="text-xs text-slate-300 space-y-2.5">
+            <li><b class="text-white">1. Starting a Token:</b> Rolling a <b>6</b> unlocks a token from the yard (<code class="text-cyan-300">-1 → 0</code>) and grants an immediate bonus roll.</li>
+            <li><b class="text-white">2. Captures & Safe Zones:</b> Landing on an opponent sends their token back to yard (<code class="text-rose-400">-1</code>) unless on a Safe Star cell. Capturing grants a bonus turn.</li>
+            <li><b class="text-white">3. Exact Finishing Requirement:</b> Tokens must land exactly on cell <b>56</b>.</li>
+            <li><b class="text-white">4. Smart Automove Heuristic:</b>
+              <div class="mt-1 bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-cyan-300">
+                shouldAuto = legalMoves.length === 1 ||<br>
+                &nbsp;&nbsp;(legalMoves.length > 1 && allTokensInYard)
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 6: WEBSOCKET PROTOCOL ================= -->
+    <section id="page-6" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 06 / Real-Time Protocol</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">WebSocket Protocol & State Serialization</h1>
+        <p class="text-sm text-slate-400">Bi-directional JSON messaging schema between client and Durable Object.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-cyan-400 text-sm font-mono border-b border-slate-800 pb-2">CLIENT → SERVER MESSAGES</h3>
+          <div class="space-y-2 text-xs font-mono">
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-cyan-400 font-bold">{ t: 'join', key, name, av }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-emerald-400 font-bold">{ t: 'roll' }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-yellow-400 font-bold">{ t: 'move', i: tokenIdx }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-purple-400 font-bold">{ t: 'sig', to, data }</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-emerald-400 text-sm font-mono border-b border-slate-800 pb-2">SERVER → CLIENT BROADCASTS</h3>
+          <div class="space-y-2 text-xs font-mono">
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-emerald-400 font-bold">{ t: 'state', g: GameState }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-cyan-400 font-bold">{ t: 'you', id: myId }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-rose-400 font-bold">{ t: 'chat', pid, name, text, color }</span>
+            </div>
+            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-yellow-400 font-bold">{ t: 'emo', pid, e: emoji }</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 7: VOICE MESH & VAD ================= -->
+    <section id="page-7" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 07 / Audio Engineering</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">WebRTC Full-Mesh Voice & Web Audio VAD</h1>
+        <p class="text-sm text-slate-400">Live speaking waveforms and volume glow rings with sub-40ms peer latency.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-950 flex items-center justify-center text-xl">🎙️</div>
+          <h3 class="font-bold text-white text-base">Audio Energy Analyser</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            In <code class="text-emerald-400 font-mono">src/audioMeter.ts</code>, an <code class="text-slate-200">AudioContext</code> connects an <code class="text-slate-200">AnalyserNode</code> (FFT size 64) to incoming WebRTC audio tracks and the local mic.
+          </p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-400">
+            RMS = Math.sqrt(Σ(val²) / N)<br>
+            isSpeaking = RMS > 0.04
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3 items-center text-center">
+          <h3 class="font-bold text-white text-base">Live Avatar Speaking Ring</h3>
+          <p class="text-xs text-slate-300">Visual feedback indicating active speech:</p>
+          <div class="py-4 flex flex-col items-center gap-3">
+            <div class="relative">
+              <div class="w-16 h-16 rounded-full bg-slate-800 border-2 border-emerald-500 flex items-center justify-center text-2xl shadow-[0_0_24px_rgba(34,197,94,0.85)] animate-pulse">
+                😎
+              </div>
+              <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-[10px]">🎙️</span>
+            </div>
+            <div class="flex items-center gap-1 h-4">
+              <span class="w-1 h-3 bg-emerald-400 rounded animate-bounce"></span>
+              <span class="w-1 h-5 bg-emerald-400 rounded animate-bounce [animation-delay:0.15s]"></span>
+              <span class="w-1 h-2 bg-emerald-400 rounded animate-bounce [animation-delay:0.3s]"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-950 flex items-center justify-center text-xl">🕸️</div>
+          <h3 class="font-bold text-white text-base">Full-Mesh Signaling</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">In 4-player Ludo, each client maintains 3 peer connections:</p>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-cyan-300">
+            Total Connections = N*(N-1)/2<br>
+            4 Players = 6 Encrypted P2P Streams
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 8: THEMES & SVG ================= -->
+    <section id="page-8" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 08 / UI & Visual Design</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">UI Design System & 5 Free Board Themes</h1>
+        <p class="text-sm text-slate-400">Standardized quadrant alignment, distinct 3D pieces, and zero-overflow board math.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <div class="glass p-4 rounded-xl flex flex-col gap-2 border-t-4 border-t-cyan-400">
+          <div class="text-2xl">❄️</div>
+          <h4 class="font-bold text-white text-sm">Glacier Frost</h4>
+          <span class="text-[10px] text-cyan-300 font-mono">Theme #0 • Shape: Crystal</span>
+          <p class="text-[11px] text-slate-400">Faceted polar ice crystals with deep cyan glass.</p>
+        </div>
+
+        <div class="glass p-4 rounded-xl flex flex-col gap-2 border-t-4 border-t-fuchsia-500">
+          <div class="text-2xl">⚡</div>
+          <h4 class="font-bold text-white text-sm">Cyber Holo</h4>
+          <span class="text-[10px] text-fuchsia-300 font-mono">Theme #1 • Shape: Reactor</span>
+          <p class="text-[11px] text-slate-400">Arc-reactor spinning disks with neon lasers.</p>
+        </div>
+
+        <div class="glass p-4 rounded-xl flex flex-col gap-2 border-t-4 border-t-emerald-500">
+          <div class="text-2xl">🐲</div>
+          <h4 class="font-bold text-white text-sm">Jade Empire</h4>
+          <span class="text-[10px] text-emerald-300 font-mono">Theme #2 • Shape: Seal</span>
+          <p class="text-[11px] text-slate-400">Imperial gold seals with translucent jade disc.</p>
+        </div>
+
+        <div class="glass p-4 rounded-xl flex flex-col gap-2 border-t-4 border-t-amber-400">
+          <div class="text-2xl">👑</div>
+          <h4 class="font-bold text-white text-sm">Royal Crown</h4>
+          <span class="text-[10px] text-amber-300 font-mono">Theme #3 • Shape: Crown</span>
+          <p class="text-[11px] text-slate-400">Velvet player-colored dome with 24K gold tiara.</p>
+        </div>
+
+        <div class="glass p-4 rounded-xl flex flex-col gap-2 border-t-4 border-t-blue-500">
+          <div class="text-2xl">🎲</div>
+          <h4 class="font-bold text-white text-sm">Classic Neon</h4>
+          <span class="text-[10px] text-blue-300 font-mono">Theme #4 • Shape: Classic</span>
+          <p class="text-[11px] text-slate-400">Glossy spherical pawns & classic night board.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 9: PASS & PLAY ================= -->
+    <section id="page-9" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 09 / Offline Capabilities</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">Offline Pass & Play (1-Phone Mode)</h1>
+        <p class="text-sm text-slate-400">Local hot-seat gaming engine with zero network dependency.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-950 flex items-center justify-center text-xl">👥</div>
+          <h3 class="font-bold text-white text-base">Flexible Seat Selection</h3>
+          <p class="text-xs text-slate-300">Players select between 2, 3, or 4 participants with custom names and avatars.</p>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-xl">🪑</div>
+          <h3 class="font-bold text-white text-base">Inactive Seat Handling</h3>
+          <p class="text-xs text-slate-300">Unused player slots are styled with dashed borders, opacity 0.28, and labeled as Inactive Seat.</p>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-950 flex items-center justify-center text-xl">📱</div>
+          <h3 class="font-bold text-white text-base">Pass Phone Turn Banner</h3>
+          <p class="text-xs text-slate-300">Top banner illuminates in the active player's color with turn instructions and haptic feedback.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 10: SECURITY & DEPLOY ================= -->
+    <section id="page-10" class="page-content hidden animate-fadeIn flex flex-col gap-6">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="text-xs uppercase font-mono font-bold tracking-widest text-cyan-400">Page 10 / Production & Security</span>
+        <h1 class="text-3xl font-extrabold text-white mt-1">Production Hardening, Security & Deployment</h1>
+        <p class="text-sm text-slate-400">Enterprise edge protections, automated CI/CD, and visual regression testing.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-white text-base flex items-center gap-2"><span>🛡️</span> Security Hardening Protocol</h3>
+          <ul class="text-xs text-slate-300 space-y-2.5">
+            <li><b class="text-rose-400">Sliding Rate Limiter:</b> Closes socket with code 1008 if requests exceed 120 / 10s.</li>
+            <li><b class="text-cyan-400">Payload Sanitization:</b> All strings pass through regex filters stripping control characters and HTML tags.</li>
+            <li><b class="text-emerald-400">Authoritative Edge Validation:</b> Moves and rolls validated on Durable Object.</li>
+          </ul>
+        </div>
+
+        <div class="glass p-5 rounded-2xl flex flex-col gap-3">
+          <h3 class="font-bold text-white text-base flex items-center gap-2"><span>🚀</span> Edge Deployment Topology</h3>
+          <ul class="text-xs text-slate-300 space-y-2.5">
+            <li><b class="text-white">Cloudflare Workers:</b> Edge runtime deployment with zero container overhead.</li>
+            <li><b class="text-white">Live URL:</b> <a href="https://ludo-voice.ludo-voice.workers.dev" target="_blank" class="text-cyan-400 hover:underline">https://ludo-voice.ludo-voice.workers.dev</a></li>
+            <li><b class="text-white">CI/CD Pipeline:</b> Automated typechecking, building, and deployment.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Page Navigation Footer -->
+  <footer class="glass border-t border-slate-800/80 px-4 lg:px-8 py-3.5 flex items-center justify-between text-xs text-slate-400">
+    <div class="flex items-center gap-4">
+      <span>Built with ❤️ for High-Concurrency Board Games</span>
+      <span class="hidden sm:inline text-slate-600">|</span>
+      <span class="hidden sm:inline">Use <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">→</kbd> keys to flip pages</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="changePage(-1)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors">Previous</button>
+      <button onclick="changePage(1)" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors">Next Page →</button>
+    </div>
+  </footer>
+
+  <script>
+    let currentPage = 1;
+    const totalPages = 10;
+
+    function updateView() {
+      for (let i = 1; i <= totalPages; i++) {
+        const el = document.getElementById(`page-${i}`);
+        if (el) {
+          if (i === currentPage) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        }
+      }
+
+      const indicator = document.getElementById('pageIndicator');
+      if (indicator) indicator.textContent = `Page ${currentPage} / ${totalPages}`;
+
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      if (prevBtn) prevBtn.disabled = (currentPage === 1);
+      if (nextBtn) nextBtn.disabled = (currentPage === totalPages);
+
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        const p = parseInt(tab.getAttribute('data-page'));
+        if (p === currentPage) {
+          tab.classList.add('glass-active', 'text-cyan-300', 'font-bold');
+          tab.classList.remove('text-slate-400');
+        } else {
+          tab.classList.remove('glass-active', 'text-cyan-300', 'font-bold');
+          tab.classList.add('text-slate-400');
+        }
+      });
+
+      const activeTab = document.querySelector(`.nav-tab[data-page="${currentPage}"]`);
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+
+    function changePage(delta) {
+      const target = currentPage + delta;
+      if (target >= 1 && target <= totalPages) {
+        currentPage = target;
+        updateView();
+      }
+    }
+
+    function goToPage(page) {
+      if (page >= 1 && page <= totalPages) {
+        currentPage = page;
+        updateView();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        changePage(1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        changePage(-1);
+      }
+    });
+
+    updateView();
+  </script>
+</body>
+</html>

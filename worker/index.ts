@@ -31,6 +31,7 @@ export default {async fetch(req:Request,env:any):Promise<Response>{try{const u=n
   return Response.json({iceServers:await getIce(env)},{headers:SEC});}
  if(u.pathname==='/api/leaderboard'){const site=req.headers.get('Sec-Fetch-Site');if(site&&site!=='same-origin')return new Response('Forbidden',{status:403});
   const top=await (env.LB.get(env.LB.idFromName('global')) as any).top();return Response.json(top,{headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'public, max-age=30'}});}
+ if(u.pathname==='/docs')return Response.redirect(new URL('/docs.html',req.url).toString(),301);
  if(u.pathname.startsWith('/api/'))return new Response('Not found',{status:404});
  const res=await env.ASSETS.fetch(req);
  const h=new Headers(res.headers);

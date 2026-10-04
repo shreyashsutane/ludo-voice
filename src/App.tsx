@@ -74,8 +74,9 @@ export default function App(){
  useEffect(()=>{if(g?.status!=='playing')return;const i=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(i);},[g?.status]);
  const onState=(newG:Game)=>{
   if(newG.seq&&lastSeq.current&&newG.seq<lastSeq.current)return;
+  const seqGap=newG.seq&&lastSeq.current?(newG.seq-lastSeq.current):1;
   if(newG.seq)lastSeq.current=newG.seq;
-  if(newG.status==='lobby'||!tokensRef.current){
+  if(newG.status==='lobby'||!tokensRef.current||seqGap>1){
    clearTimeout(animTimer.current);pendingG.current=null;isAnimatingRef.current=false;
    tokensRef.current=newG.tokens.map(ts=>[...ts]);setDispTokens(newG.tokens.map(ts=>[...ts]));
    setStepping(null);setAnimating(false);setG(newG);return;}

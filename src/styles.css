@@ -101,4 +101,13 @@ h2{margin:0;font-size:1.5rem}h3{margin:10px 0 0}.sub{margin:0;color:#8ea2cc;font
 .chat-input{flex:1;background:#0d1527;border:1.5px solid #2a3d68;border-radius:12px;padding:9px 12px;color:#fff;font-size:.85rem;outline:none}
 .chat-input:focus{border-color:#4aa3ff}
 .chat-send{background:#22d37a;color:#052414;font-weight:800;border-radius:12px;padding:9px 16px;font-size:.85rem}
+.glass-panel{background:rgba(14,28,56,.72);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1.5px solid rgba(125,211,252,.28);border-radius:20px;box-shadow:0 12px 36px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2)}
+.invite-card{background:linear-gradient(145deg,rgba(17,27,49,.95),rgba(10,16,29,.98));border:1.5px solid #253963;border-radius:20px;padding:22px 18px;display:flex;flex-direction:column;gap:16px;box-shadow:0 12px 36px rgba(0,0,0,.5);position:relative;overflow:hidden}
+.invite-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3ff0a0,#4aa3ff,#ffb020)}
+.badge-pill{display:inline-flex;align-items:center;gap:6px;align-self:center;background:rgba(63,240,160,.12);border:1px solid rgba(63,240,160,.35);color:#3ff0a0;padding:4px 12px;border-radius:999px;font-size:.76rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.room-callout{background:rgba(14,23,42,.8);border:1px dashed #2c4270;border-radius:14px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:4px}
+.room-callout .lbl{font-size:.72rem;color:#8ea2cc;text-transform:uppercase;letter-spacing:.05em}
+.room-callout .code{font-size:1.6rem;font-weight:900;color:#4aa3ff;letter-spacing:.18em;text-shadow:0 0 15px rgba(74,163,255,.45)}
+.room-callout .subnote{font-size:.75rem;color:#9fb3d9}
+.selected-theme{border-color:#38bdf8!important;box-shadow:0 0 16px rgba(56,189,248,.35)!important;background:rgba(20,38,76,.85)!important}
 @media(prefers-reduced-motion:reduce){.spin,.tok,.sheet,.dice,.ring,.emo,.pulse-yard,.tap-me,.chat-drawer{animation:none;transition:none}}

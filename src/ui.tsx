@@ -1,10 +1,17 @@
 import {useEffect,useState} from 'react';
 export const AV=['😎','🦊','🐼','🦁','🐯','🐸','👾','🤖'];
-export const THEMES=[{n:'Neon Night',p:0,bg:'#0e1626',cell:'#eef4ff',line:'#26365a'},{n:'Sunset',p:150,bg:'#2a1420',cell:'#ffe9d6',line:'#7a3552'},{n:'Forest',p:300,bg:'#0f2218',cell:'#e6f5df',line:'#2f6a45'},{n:'Midnight Gold',p:500,bg:'#14120a',cell:'#fff3c4',line:'#8a6d1a'}];
+export type ThemeDef={n:string;icon:string;p:number;bg:string;cell:string;line:string;glow:string;shape:'crystal'|'reactor'|'seal'|'crown'|'classic';colors:string[];desc:string};
+export const THEMES:ThemeDef[]=[
+ {n:'Glacier Frost',icon:'❄️',p:0,bg:'#0a1834',cell:'rgba(224,242,254,0.88)',line:'#38bdf8',glow:'#38bdf8',shape:'crystal',colors:['#38bdf8','#34d399','#818cf8','#fcd34d'],desc:'Faceted Ice Crystals & Polar Cyan Glass'},
+ {n:'Cyber Holo',icon:'⚡',p:0,bg:'#160924',cell:'rgba(255,255,255,0.85)',line:'#ff007f',glow:'#ff007f',shape:'reactor',colors:['#ff007f','#00f0ff','#a855f7','#ffe600'],desc:'Arc-Reactor Disks & Neon Lasers'},
+ {n:'Jade Empire',icon:'🐲',p:0,bg:'#08261a',cell:'rgba(209,250,229,0.88)',line:'#34d399',glow:'#34d399',shape:'seal',colors:['#10b981','#e11d48','#f59e0b','#06b6d4'],desc:'Imperial Gold Seals & Translucent Jade'},
+ {n:'Royal Crown',icon:'👑',p:0,bg:'#1e160a',cell:'rgba(254,243,199,0.88)',line:'#fbbf24',glow:'#fbbf24',shape:'crown',colors:['#e11d48','#2563eb','#d97706','#059669'],desc:'24K Gold Crown Statues & Jewel Inlays'},
+ {n:'Classic Neon',icon:'🎲',p:0,bg:'#0e1626',cell:'#eef4ff',line:'#26365a',glow:'#4aa3ff',shape:'classic',colors:['#ff4757','#22d37a','#3b82f6','#f5b800'],desc:'Original Glossy Round Tokens & Night Board'}
+];
 export type Stats={games:number;wins:number;coins:number;av:string;theme:number;owned:number[]};
 export type Cfg={sound:boolean;vibe:boolean;automove:boolean};
 const parse=(k:string)=>{try{return JSON.parse(localStorage.getItem(k)||'{}');}catch{return{};}};
-export const loadStats=():Stats=>({games:0,wins:0,coins:0,av:AV[0],theme:0,owned:[0],...parse('st')});
+export const loadStats=():Stats=>({games:0,wins:0,coins:0,av:AV[0],theme:0,owned:[0,1,2,3,4],...parse('st')});
 export const loadCfg=():Cfg=>({sound:true,vibe:true,automove:true,...parse('cfg')});
 export const level=(s:Stats)=>{const xp=s.games*10+s.wins*40,l=Math.floor(Math.sqrt(xp/20))+1,lo=(l-1)**2*20,hi=l*l*20;return{l,pct:Math.round((xp-lo)/(hi-lo)*100)};};
 let ac:AudioContext|undefined;
@@ -75,10 +82,20 @@ export function Profile({st,setSt,name,setName}:{st:Stats;setSt:(s:Stats)=>void;
   <div className="stats"><div><b>{st.games}</b>Games</div><div><b>{st.wins}</b>Wins</div><div><b>{st.games?Math.round(st.wins/st.games*100):0}%</b>Win rate</div><div><b>🪙 {st.coins}</b>Coins</div></div>
   <p className="sub">Stats and coins are stored on this device only.</p></div>;}
 export function Shop({st,setSt}:{st:Stats;setSt:(s:Stats)=>void}){
- return<div><h2>Shop</h2><p className="sub">🪙 {st.coins} · earn 10 per game and 50 per win</p>{THEMES.map((t,i)=>{const own=st.owned.includes(i),eq=st.theme===i;
-  return<div key={i} className="item"><div className="sw" style={{background:t.bg,borderColor:t.line}}><i style={{background:t.cell}}/><i style={{background:t.cell}}/><i style={{background:t.cell}}/></div>
-   <div className="ci grow"><b>{t.n}</b><span>Board theme</span></div>
-   <button className={eq?'alt':'cta sm'} disabled={eq||(!own&&st.coins<t.p)} onClick={()=>own?setSt({...st,theme:i}):setSt({...st,coins:st.coins-t.p,owned:[...st.owned,i],theme:i})}>{eq?'Equipped':own?'Equip':`🪙 ${t.p}`}</button></div>;})}</div>;}
+ return<div>
+  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}}>
+   <h2>Themes Shop</h2>
+   <span style={{fontSize:'.74rem',color:'#34d399',fontWeight:800,background:'rgba(52,211,153,.15)',border:'1px solid rgba(52,211,153,.35)',padding:'3px 10px',borderRadius:'999px'}}>✨ All 100% Free</span>
+  </div>
+  <p className="sub" style={{marginBottom:'12px'}}>Tap any theme to equip it instantly with custom pieces and board styling.</p>
+  {THEMES.map((t,i)=>{const eq=st.theme===i;
+   return<div key={i} className={'item'+(eq?' me':'')} style={{display:'flex',alignItems:'center',gap:'12px',padding:'12px',cursor:'pointer'}} onClick={()=>setSt({...st,theme:i})}>
+    <div className="sw" style={{background:t.bg,borderColor:t.line,fontSize:'1.3rem',display:'grid',placeItems:'center',width:'44px',height:'44px',borderRadius:'12px',flex:'none'}}>{t.icon}</div>
+    <div className="ci grow"><b style={{fontSize:'.95rem',color:eq?'#38bdf8':'#fff'}}>{t.n}</b><span style={{fontSize:'.74rem',color:'#94a3b8'}}>{t.desc}</span></div>
+    <button className={eq?'alt':'cta sm'} style={{flex:'none',minWidth:'86px'}} onClick={(e)=>{e.stopPropagation();setSt({...st,theme:i});}}>{eq?'Equipped':'Equip'}</button>
+   </div>;})}
+ </div>;
+}
 export function Ranks({me}:{me:string}){const [rows,setRows]=useState<any[]|null>(null);const [bad,setBad]=useState(false);
  useEffect(()=>{fetch('/api/leaderboard').then(r=>r.json()).then(setRows).catch(()=>setBad(true));},[]);
  return<div><h2>Leaderboard</h2>{bad&&<p className="err">Could not load rankings. Check your connection.</p>}{!rows&&!bad&&<p className="sub">Loading…</p>}

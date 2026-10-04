@@ -1,7 +1,16 @@
 import {useEffect,useRef,useState} from 'react';
 import {Game,START,SAFE,legal} from './engine';import {Voice} from './voice';
-import {THEMES,Stats,Cfg,loadStats,loadCfg,level,sfx,initAudio,TabBar,Profile,Shop,Ranks,Settings} from './ui';
+import {THEMES,AV,Stats,Cfg,loadStats,loadCfg,level,sfx,initAudio,TabBar,Profile,Shop,Ranks,Settings} from './ui';
 const COL=['#ff4757','#22d37a','#3b82f6','#f5b800'],NAME=['Red','Green','Blue','Yellow'];
+function PieceGraphic({shape,color,isWon,isHop}:{shape:string;color:string;isWon:boolean;isHop:boolean}){
+ if(isWon)return<g><circle r={.22} fill={color} stroke="#ffb020" strokeWidth=".04"/><text fontSize=".2" textAnchor="middle" dy=".07" fill="#fff" fontWeight="900">★</text></g>;
+ const s=isHop?1.2:0.96;
+ if(shape==='crystal')return<g transform={`scale(${s})`}><polygon points="0,-0.44 0.35,-0.15 0.35,0.25 0,0.44 -0.35,0.25 -0.35,-0.15" fill={color} fillOpacity="0.88" stroke="#ffffff" strokeWidth="0.05"/><polygon points="0,-0.44 0.35,-0.15 0,0 -0.35,-0.15" fill="#ffffff" fillOpacity="0.45"/><polygon points="0,0 0.35,0.25 0,0.44 -0.35,0.25" fill="#000000" fillOpacity="0.32"/><circle cx="0" cy="0" r="0.1" fill="#ffffff"/></g>;
+ if(shape==='reactor')return<g transform={`scale(${s})`}><circle r={0.46} fill="none" stroke={color} strokeWidth="0.05" strokeDasharray="0.3 0.16"/><circle r={0.35} fill="#0d0716" stroke="#ffffff" strokeWidth="0.05"/><circle r={0.21} fill={color}/><line x1="-0.26" y1="0" x2="0.26" y2="0" stroke="#ffffff" strokeWidth="0.04"/><line x1="0" y1="-0.26" x2="0.26" y2="0.26" stroke="#ffffff" strokeWidth="0.04"/><circle r={0.07} fill="#ffffff"/></g>;
+ if(shape==='seal')return<g transform={`scale(${s})`}><circle r={0.44} fill="#b45309" stroke="#fbbf24" strokeWidth="0.06"/><circle r={0.34} fill={color} stroke="#ffffff" strokeWidth="0.03" strokeOpacity="0.6"/><ellipse cx="-0.1" cy="-0.12" rx="0.14" ry="0.07" fill="#ffffff" fillOpacity="0.45"/><text fontSize="0.3" textAnchor="middle" dy="0.1" fill="#fef08a" fontWeight="900">⚜</text></g>;
+ if(shape==='crown')return<g transform={`scale(${s})`}><ellipse cx="0" cy="0.24" rx="0.42" ry="0.17" fill="#78350f" stroke="#fbbf24" strokeWidth="0.05"/><ellipse cx="0" cy="0.15" rx="0.34" ry="0.13" fill="#d97706" stroke="#fef08a" strokeWidth="0.04"/><path d="M-0.32 0.13 L-0.28 -0.14 L-0.11 0 L0 -0.3 L0.11 0 L0.28 -0.14 L0.32 0.13 Z" fill="#fbbf24" stroke="#ffffff" strokeWidth="0.04"/><circle cx="0" cy="-0.07" r="0.11" fill={color} stroke="#ffffff" strokeWidth="0.03"/><circle cx="-0.28" cy="-0.14" r="0.05" fill="#fef08a"/><circle cx="0" cy="-0.3" r="0.07" fill="#fef08a"/><circle cx="0.28" cy="-0.14" r="0.05" fill="#fef08a"/></g>;
+ return<g><circle r={isHop?.44:.36} fill={color} stroke="#0b1220" strokeWidth=".07" style={{transition:'r .18s ease'}}/><circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/></g>;
+}
 const PATH:[number,number][]=(()=>{let [x,y]=[1,6];const o:[number,number][]=[[x,y]];
  const D:any={R:[1,0],L:[-1,0],U:[0,-1],D:[0,1],a:[1,-1],b:[1,1],c:[-1,1],d:[-1,-1]};
  'R4a1U5R2D5b1R5D2L5c1D5L2U5d1L5U2'.match(/[A-Za-z]\d/g)!.forEach(s=>{for(let i=0;i<+s[1];i++){x+=D[s[0]][0];y+=D[s[0]][1];o.push([x,y]);}});return o;})();
@@ -111,20 +120,56 @@ export default function App(){
   const shouldAuto=mvs.length===1||(mvs.length>1&&mvs.every(i=>myTokens[i]===-1));
   if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{send({t:'move',i:tgt});},280);}return()=>clearTimeout(autoTimer.current);
  },[g?.status,g?.roll,g?.turn,animating,myId,cfg.automove]);
- const enter=(r:string)=>{r=clean(r);if(!name.trim()||r.length!==6){setErr('Enter your name and a 6-character room code');return;}
+ const enter=(r:string)=>{r=clean(r);if(!name.trim()){setErr('Please enter your name');return;}if(r.length!==6){setErr('Invalid 6-character room code');return;}
   setErr('');location.hash=r;setRoom(r);setGo(true);};
  const leave=()=>{if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
  const toggleVoice=async()=>{if(!voice.current){setErr('Still connecting. Try again in a moment.');return;}try{if(on){voice.current.stop();setOn(false);}else{await voice.current.start();setOn(true);setMuted(false);setErr('');}}catch{setErr('Microphone blocked. Allow mic access and retry.');}};
  const T=THEMES[st.theme]||THEMES[0],L=level(st);
+ const themeCol=T.colors||COL;
+ const isInvite=!g&&!go&&room.length===6;
  if(!g){if(go)return<div className="scr center"><div className="spin"/><p>Connecting to room {room}…</p><button className="alt" onClick={leave}>Cancel</button></div>;
-  return<><div className="scr">{tab==='home'&&<div className="homev"><div className="me"><div className="av big">{st.av}</div><div className="ci"><b>{name||'Player'}</b><span>Level {L.l} · 🪙 {st.coins}</span></div></div>
-   <h1>LUDO <span>ONLINE</span></h1><p className="sub">Play with friends and talk while you play. 2 to 4 players.</p>
-   <input placeholder="Your name" value={name} maxLength={14} onChange={e=>setName(e.target.value)}/>
-   <button className="cta" onClick={()=>enter(makeCode())}>CREATE ROOM</button>
-   <div className="row"><input placeholder="Room code" defaultValue={room} id="rc" maxLength={6}/><button className="alt" onClick={()=>enter((document.getElementById('rc') as HTMLInputElement).value)}>Join</button></div>
-   {err&&<p className="err">{err}</p>}</div>}
-   {tab==='profile'&&<Profile st={st} setSt={setSt} name={name} setName={setName}/>}{tab==='shop'&&<Shop st={st} setSt={setSt}/>}
-   {tab==='ranks'&&<Ranks me={myId}/>}{tab==='settings'&&<Settings cfg={cfg} setCfg={setCfg} reset={()=>{localStorage.clear();location.hash='';location.reload();}}/>}</div><TabBar tab={tab} set={setTab}/></>;}
+  return<><div className="scr">{tab==='home'&&(isInvite?(
+   <div className="homev" style={{gap:'16px',paddingTop:'1vh'}}>
+    <div style={{textAlign:'center'}}>
+     <span className="badge-pill">🎉 GAME INVITATION</span>
+     <h1 style={{marginTop:'8px',marginBottom:'2px'}}>LUDO <span>ONLINE</span></h1>
+     <p className="sub">A friend has invited you to jump into a live match!</p>
+    </div>
+    <div className="invite-card">
+     <div className="room-callout">
+      <span className="lbl">ROOM CODE</span>
+      <span className="code">{room}</span>
+      <span className="subnote">Locked & ready to connect</span>
+     </div>
+     <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+      <label style={{fontSize:'.78rem',color:'#8ea2cc',fontWeight:600}}>YOUR NAME</label>
+      <input placeholder="Enter your player name" value={name} maxLength={14} autoFocus onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enter(room)}/>
+     </div>
+     <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+       <label style={{fontSize:'.78rem',color:'#8ea2cc',fontWeight:600}}>CHOOSE AVATAR</label>
+       <span style={{fontSize:'1.2rem'}}>{st.av}</span>
+      </div>
+      <div className="avs" style={{gridTemplateColumns:'repeat(8,1fr)',gap:'4px'}}>
+       {AV.map(a=><button key={a} type="button" className={a===st.av?'on':''} onClick={()=>setSt(s=>({...s,av:a}))}>{a}</button>)}
+      </div>
+     </div>
+     <button className="cta" style={{width:'100%',marginTop:'4px'}} onClick={()=>enter(room)}>▶ JOIN ROOM</button>
+     {err&&<p className="err">{err}</p>}
+    </div>
+    <button className="alt" style={{background:'none',border:'none',color:'#8ea2cc',fontSize:'.82rem',textDecoration:'underline',cursor:'pointer',textAlign:'center'}} onClick={()=>{setRoom('');location.hash='';setErr('');}}>or Create your own game instead</button>
+   </div>
+  ):(
+   <div className="homev"><div className="me"><div className="av big">{st.av}</div><div className="ci"><b>{name||'Player'}</b><span>Level {L.l} · 🪙 {st.coins}</span></div></div>
+    <h1>LUDO <span>ONLINE</span></h1><p className="sub">Play with friends and talk while you play. 2 to 4 players.</p>
+    <input placeholder="Your name" value={name} maxLength={14} onChange={e=>setName(e.target.value)}/>
+    <button className="cta" onClick={()=>enter(makeCode())}>CREATE ROOM</button>
+    <div className="row"><input placeholder="Room code" defaultValue={room} id="rc" maxLength={6}/><button className="alt" onClick={()=>enter((document.getElementById('rc') as HTMLInputElement).value)}>Join</button></div>
+    {err&&<p className="err">{err}</p>}
+   </div>
+  ))}
+  {tab==='profile'&&<Profile st={st} setSt={setSt} name={name} setName={setName}/>}{tab==='shop'&&<Shop st={st} setSt={setSt}/>}
+  {tab==='ranks'&&<Ranks me={myId}/>}{tab==='settings'&&<Settings cfg={cfg} setCfg={setCfg} reset={()=>{localStorage.clear();location.hash='';location.reload();}}/>}</div><TabBar tab={tab} set={setTab}/></>;}
  const me=g.players.find(p=>p.id===myId),cur=g.players[g.turn],mine=g.status==='playing'&&cur?.id===myId,mc=me?.color??0,host=g.players[0]?.id===myId;
  const mvs=mine&&g.roll!==null?legal(g.tokens[mc],g.roll):[];
  const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
@@ -143,7 +188,7 @@ export default function App(){
  const share=()=>{if(navigator.share)navigator.share({title:'Ludo Online',url:location.href}).catch(()=>{});else{navigator.clipboard?.writeText(location.href);say('Invite link copied');}};
  const cell=(x:number,y:number,f:string,k:string,star=false)=><g key={k}><rect x={x+.06} y={y+.06} width={.88} height={.88} rx={.14} fill={f} className="cell"/>{star&&<text x={x+.5} y={y+.72} fontSize=".6" textAnchor="middle" fill="#ffb020">★</text>}</g>;
  const card=(c:number)=>{const p=g.players.find(q=>q.color===c);const a=g.status==='playing'&&!!p&&cur?.id===p.id;const h=g.tokens[c].filter(x=>x===56).length;
-  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':COL[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':COL[c]} as any}>💬 {bubble[p.id]}</div>}<div className="av">{p?(p.av||'🙂'):'?'}</div>
+  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className="av">{p?(p.av||'🙂'):'?'}</div>
    <div className="ci"><b>{p?p.name:'Waiting…'}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
@@ -154,24 +199,23 @@ export default function App(){
   <button className={'ic'+(on?' live':'')} onClick={toggleVoice} title="Voice chat">🎙</button></header>
   {Object.entries(streams).map(([k,s])=><Audio key={k} s={s}/>)}{err&&<p className="err">{err}</p>}
   <div className="cards">{card(0)}{card(1)}</div>
-  <div className="boardwrap" style={{background:T.bg,borderColor:T.line}}><svg viewBox="-0.15 -0.15 15.3 15.3" preserveAspectRatio="none">
+  <div className="boardwrap" style={{background:T.bg,borderColor:T.line,boxShadow:`0 8px 32px rgba(0,0,0,.7),0 0 24px ${T.glow}33`}}><svg viewBox="-0.15 -0.15 15.3 15.3" preserveAspectRatio="none">
    {[0,1,2,3].map(c=>{const [ox,oy]=yard(c);const isTurn=g.status==='playing'&&cur?.color===c;return<g key={c}>
-    <rect x={ox+.5} y={oy+.5} width={5} height={5} rx={.7} fill={COL[c]} fillOpacity={isTurn?".24":".12"} stroke={COL[c]} strokeWidth={isTurn?".13":".08"} className={"glow"+(isTurn?" pulse-yard":"")} style={{color:COL[c]}}/>
-    {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={COL[c]} strokeOpacity=".4" strokeWidth=".05"/>;})}</g>;})}
-   {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?COL[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
-   {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,COL[c],`h${c}${k}`)))}
-   <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?COL[cur?.color??0]:"#253554"} strokeWidth={mine&&g.roll===null?".08":".06"}/>
+    <rect x={ox+.5} y={oy+.5} width={5} height={5} rx={.7} fill={themeCol[c]} fillOpacity={isTurn?".24":".12"} stroke={themeCol[c]} strokeWidth={isTurn?".13":".08"} className={"glow"+(isTurn?" pulse-yard":"")} style={{color:themeCol[c]}}/>
+    {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={themeCol[c]} strokeOpacity=".4" strokeWidth=".05"/>;})}</g>;})}
+   {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?themeCol[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
+   {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,themeCol[c],`h${c}${k}`)))}
+   <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?themeCol[cur?.color??0]:T.line} strokeWidth={mine&&g.roll===null?".08":".06"}/>
    {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
     const isWon=p===56;
     if(p>=0&&!isWon&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
     const can=c===mc&&movable.includes(i);
     return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);send({t:'move',i});}}}>{can&&<circle r={.5} className="ring"/>}
-     <circle r={isWon?.22:(isHop?.44:.36)} fill={COL[c]} stroke={isWon?"#ffb020":"#0b1220"} strokeWidth={isWon?".04":".07"} style={{transition:'r .18s ease'}}/>
-     {isWon?<text fontSize=".2" textAnchor="middle" dy=".07" fill="#fff" fontWeight="900">★</text>:<circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/>}</g>;}))}
+     <PieceGraphic shape={T.shape} color={themeCol[c]} isWon={isWon} isHop={isHop} /></g>;}))}
    {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
     return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
      <rect x={6.82} y={6.52} width={1.36} height={1.36} rx={.28} fill="#f4f8ff" stroke="#b0c4e8" strokeWidth=".03"/>
-     {PIPS[dispV].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?COL[g.last.color]:"#16213a"}/>)}</g>;})()}
+     {PIPS[dispV].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?themeCol[g.last.color]:"#16213a"}/>)}</g>;})()}
    <text x={7.5} y={8.55} fontSize=".28" fontWeight="700" textAnchor="middle" fill={mine&&g.roll===null?"#3ff0a0":"#9fb3d9"}>{cap}</text>
   </svg></div>
   <div className="cards">{card(3)}{card(2)}</div>
@@ -189,7 +233,7 @@ export default function App(){
   </div>
   {chatOpen&&<div className="chat-drawer"><div className="chat-head"><span>Game Chat 💬</span><button onClick={()=>setChatOpen(false)}>✕</button></div>
    <div className="quick-chats">{QUICK.map(q=><button key={q} onClick={()=>sendChat(q)}>{q}</button>)}</div>
-   <div className="chat-list">{chats.length===0?<div style={{color:'#8ea2cc',fontSize:'.78rem',textAlign:'center',padding:'8px 0'}}>No messages yet. Send a quick chat!</div>:chats.map((c,i)=><div key={i} className="chat-item"><b style={{color:COL[c.color]}}>{c.name}:</b><span>{c.text}</span></div>)}</div>
+   <div className="chat-list">{chats.length===0?<div style={{color:'#8ea2cc',fontSize:'.78rem',textAlign:'center',padding:'8px 0'}}>No messages yet. Send a quick chat!</div>:chats.map((c,i)=><div key={i} className="chat-item"><b style={{color:themeCol[c.color]}}>{c.name}:</b><span>{c.text}</span></div>)}</div>
    <form className="chat-form" onSubmit={e=>{e.preventDefault();sendChat(msg);}}><input className="chat-input" placeholder="Type a message…" value={msg} maxLength={60} onChange={e=>setMsg(e.target.value)}/><button type="submit" className="chat-send">Send</button></form></div>}
-  {g.status==='done'&&<div className="modal"><div className="sheet"><div className="trophy">🏆</div><h2 style={{color:COL[g.winner!]}}>{win?.name} wins!</h2>
+  {g.status==='done'&&<div className="modal"><div className="sheet"><div className="trophy">🏆</div><h2 style={{color:themeCol[g.winner!]}}>{win?.name} wins!</h2>
    {me&&<p className="sub">{g.winner===mc?'+60':'+10'} 🪙 earned</p>}{host&&<button className="cta" onClick={()=>send({t:'again'})}>PLAY AGAIN</button>}{!host&&<p className="sub">Waiting for the host to start another game…</p>}<button className="alt" onClick={leave}>Leave room</button></div></div>}</div>;}

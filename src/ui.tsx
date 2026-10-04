@@ -2,10 +2,10 @@ import {useEffect,useState} from 'react';
 export const AV=['😎','🦊','🐼','🦁','🐯','🐸','👾','🤖'];
 export type ThemeDef={n:string;icon:string;p:number;bg:string;cell:string;line:string;glow:string;shape:'crystal'|'reactor'|'seal'|'crown'|'classic';colors:string[];desc:string};
 export const THEMES:ThemeDef[]=[
- {n:'Glacier Frost',icon:'❄️',p:0,bg:'#0a1834',cell:'rgba(224,242,254,0.88)',line:'#38bdf8',glow:'#38bdf8',shape:'crystal',colors:['#38bdf8','#34d399','#818cf8','#fcd34d'],desc:'Faceted Ice Crystals & Polar Cyan Glass'},
- {n:'Cyber Holo',icon:'⚡',p:0,bg:'#160924',cell:'rgba(255,255,255,0.85)',line:'#ff007f',glow:'#ff007f',shape:'reactor',colors:['#ff007f','#00f0ff','#a855f7','#ffe600'],desc:'Arc-Reactor Disks & Neon Lasers'},
- {n:'Jade Empire',icon:'🐲',p:0,bg:'#08261a',cell:'rgba(209,250,229,0.88)',line:'#34d399',glow:'#34d399',shape:'seal',colors:['#10b981','#e11d48','#f59e0b','#06b6d4'],desc:'Imperial Gold Seals & Translucent Jade'},
- {n:'Royal Crown',icon:'👑',p:0,bg:'#1e160a',cell:'rgba(254,243,199,0.88)',line:'#fbbf24',glow:'#fbbf24',shape:'crown',colors:['#e11d48','#2563eb','#d97706','#059669'],desc:'24K Gold Crown Statues & Jewel Inlays'},
+ {n:'Glacier Frost',icon:'❄️',p:0,bg:'#0a1834',cell:'rgba(224,242,254,0.88)',line:'#38bdf8',glow:'#38bdf8',shape:'crystal',colors:['#fb7185','#34d399','#38bdf8','#fcd34d'],desc:'Faceted Ice Crystals & Polar Cyan Glass'},
+ {n:'Cyber Holo',icon:'⚡',p:0,bg:'#160924',cell:'rgba(255,255,255,0.85)',line:'#ff007f',glow:'#ff007f',shape:'reactor',colors:['#ff007f','#00ff66','#00f0ff','#ffe600'],desc:'Arc-Reactor Disks & Neon Lasers'},
+ {n:'Jade Empire',icon:'🐲',p:0,bg:'#08261a',cell:'rgba(209,250,229,0.88)',line:'#34d399',glow:'#34d399',shape:'seal',colors:['#ef4444','#10b981','#06b6d4','#f59e0b'],desc:'Imperial Gold Seals & Translucent Jade'},
+ {n:'Royal Crown',icon:'👑',p:0,bg:'#1e160a',cell:'rgba(254,243,199,0.88)',line:'#fbbf24',glow:'#fbbf24',shape:'crown',colors:['#e11d48','#059669','#2563eb','#d97706'],desc:'24K Gold Crown Statues & Jewel Inlays'},
  {n:'Classic Neon',icon:'🎲',p:0,bg:'#0e1626',cell:'#eef4ff',line:'#26365a',glow:'#4aa3ff',shape:'classic',colors:['#ff4757','#22d37a','#3b82f6','#f5b800'],desc:'Original Glossy Round Tokens & Night Board'}
 ];
 export type Stats={games:number;wins:number;coins:number;av:string;theme:number;owned:number[]};

@@ -6,10 +6,10 @@ const COL=['#ff4757','#22d37a','#3b82f6','#f5b800'],NAME=['Red','Green','Blue','
 function PieceGraphic({shape,color,isWon,isHop}:{shape:string;color:string;isWon:boolean;isHop:boolean}){
  if(isWon)return<g><circle r={.22} fill={color} stroke="#ffb020" strokeWidth=".04"/><text fontSize=".2" textAnchor="middle" dy=".07" fill="#fff" fontWeight="900">★</text></g>;
  const s=isHop?1.2:0.96;
- if(shape==='crystal')return<g transform={`scale(${s})`}><polygon points="0,-0.44 0.35,-0.15 0.35,0.25 0,0.44 -0.35,0.25 -0.35,-0.15" fill={color} fillOpacity="0.88" stroke="#ffffff" strokeWidth="0.05"/><polygon points="0,-0.44 0.35,-0.15 0,0 -0.35,-0.15" fill="#ffffff" fillOpacity="0.45"/><polygon points="0,0 0.35,0.25 0,0.44 -0.35,0.25" fill="#000000" fillOpacity="0.32"/><circle cx="0" cy="0" r="0.1" fill="#ffffff"/></g>;
- if(shape==='reactor')return<g transform={`scale(${s})`}><circle r={0.46} fill="none" stroke={color} strokeWidth="0.05" strokeDasharray="0.3 0.16"/><circle r={0.35} fill="#0d0716" stroke="#ffffff" strokeWidth="0.05"/><circle r={0.21} fill={color}/><line x1="-0.26" y1="0" x2="0.26" y2="0" stroke="#ffffff" strokeWidth="0.04"/><line x1="0" y1="-0.26" x2="0.26" y2="0.26" stroke="#ffffff" strokeWidth="0.04"/><circle r={0.07} fill="#ffffff"/></g>;
- if(shape==='seal')return<g transform={`scale(${s})`}><circle r={0.44} fill="#b45309" stroke="#fbbf24" strokeWidth="0.06"/><circle r={0.34} fill={color} stroke="#ffffff" strokeWidth="0.03" strokeOpacity="0.6"/><ellipse cx="-0.1" cy="-0.12" rx="0.14" ry="0.07" fill="#ffffff" fillOpacity="0.45"/><text fontSize="0.3" textAnchor="middle" dy="0.1" fill="#fef08a" fontWeight="900">⚜</text></g>;
- if(shape==='crown')return<g transform={`scale(${s})`}><ellipse cx="0" cy="0.24" rx="0.42" ry="0.17" fill="#78350f" stroke="#fbbf24" strokeWidth="0.05"/><ellipse cx="0" cy="0.15" rx="0.34" ry="0.13" fill="#d97706" stroke="#fef08a" strokeWidth="0.04"/><path d="M-0.32 0.13 L-0.28 -0.14 L-0.11 0 L0 -0.3 L0.11 0 L0.28 -0.14 L0.32 0.13 Z" fill="#fbbf24" stroke="#ffffff" strokeWidth="0.04"/><circle cx="0" cy="-0.07" r="0.11" fill={color} stroke="#ffffff" strokeWidth="0.03"/><circle cx="-0.28" cy="-0.14" r="0.05" fill="#fef08a"/><circle cx="0" cy="-0.3" r="0.07" fill="#fef08a"/><circle cx="0.28" cy="-0.14" r="0.05" fill="#fef08a"/></g>;
+ if(shape==='crystal')return<g transform={`scale(${s})`}><polygon points="0,-0.44 0.35,-0.15 0.35,0.25 0,0.44 -0.35,0.25 -0.35,-0.15" fill={color} fillOpacity="0.9" stroke="#ffffff" strokeWidth="0.05"/><polygon points="0,-0.44 0.35,-0.15 0,0 -0.35,-0.15" fill="#ffffff" fillOpacity="0.45"/><polygon points="0,0 0.35,0.25 0,0.44 -0.35,0.25" fill="#000000" fillOpacity="0.32"/><circle cx="0" cy="0" r="0.09" fill="#ffffff"/></g>;
+ if(shape==='reactor')return<g transform={`scale(${s})`}><circle r={0.46} fill="none" stroke={color} strokeWidth="0.06" strokeDasharray="0.3 0.16"/><circle r={0.35} fill="#0d0716" stroke={color} strokeWidth="0.04"/><circle r={0.22} fill={color}/><line x1="-0.26" y1="0" x2="0.26" y2="0" stroke="#ffffff" strokeWidth="0.04"/><line x1="0" y1="-0.26" x2="0.26" y2="0.26" stroke="#ffffff" strokeWidth="0.04"/><circle r={0.07} fill="#ffffff"/></g>;
+ if(shape==='seal')return<g transform={`scale(${s})`}><circle r={0.44} fill={color} stroke="#fbbf24" strokeWidth="0.06"/><circle r={0.34} fill="#061f14" fillOpacity="0.35" stroke="#ffffff" strokeWidth="0.03" strokeOpacity="0.7"/><ellipse cx="-0.1" cy="-0.12" rx="0.14" ry="0.07" fill="#ffffff" fillOpacity="0.45"/><text fontSize="0.32" textAnchor="middle" dy="0.11" fill="#fef08a" fontWeight="900">⚜</text></g>;
+ if(shape==='crown')return<g transform={`scale(${s})`}><ellipse cx="0" cy="0.02" rx="0.36" ry="0.32" fill={color}/><ellipse cx="-0.09" cy="-0.08" rx="0.14" ry="0.1" fill="#ffffff" fillOpacity="0.3"/><path d="M-0.34 0.16 L-0.3 -0.12 L-0.12 0.04 L0 -0.26 L0.12 0.04 L0.3 -0.12 L0.34 0.16 Z" fill="#fbbf24" stroke="#d97706" strokeWidth="0.03"/><rect x="-0.36" y="0.15" width="0.72" height="0.15" rx="0.07" fill="#d97706" stroke="#fbbf24" strokeWidth="0.03"/><circle cx="-0.3" cy="-0.12" r="0.06" fill="#fff" stroke="#d97706" strokeWidth="0.02"/><circle cx="0" cy="-0.26" r="0.075" fill="#fff" stroke="#d97706" strokeWidth="0.02"/><circle cx="0.3" cy="-0.12" r="0.06" fill="#fff" stroke="#d97706" strokeWidth="0.02"/><circle cx="0" cy="0.02" r="0.1" fill={color} stroke="#fbbf24" strokeWidth="0.03"/><circle cx="-0.18" cy="0.22" r="0.04" fill={color}/><circle cx="0" cy="0.22" r="0.045" fill="#fff"/><circle cx="0.18" cy="0.22" r="0.04" fill={color}/></g>;
  return<g><circle r={isHop?.44:.36} fill={color} stroke="#0b1220" strokeWidth=".07" style={{transition:'r .18s ease'}}/><circle cx={-.1} cy={-.12} r={.12} fill="#fff" fillOpacity=".55"/></g>;
 }
 const PATH:[number,number][]=(()=>{let [x,y]=[1,6];const o:[number,number][]=[[x,y]];
@@ -149,15 +149,20 @@ export default function App(){
  },[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
   if(g.status==='done'&&p.status!=='done')sfx('win',cfg.sound);
-  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn)){sfx('roll',cfg.sound);startRollAnim();}
-  if(g.turn!==p.turn&&cur?.id===myId&&g.status==='playing'){sfx('turn',cfg.sound);if(cfg.vibe)navigator.vibrate?.(120);}
+  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn)){if(!rolling){sfx('roll',cfg.sound);startRollAnim();}}
+  if(g.turn!==p.turn&&(offline||cur?.id===myId)&&g.status==='playing'){sfx('turn',cfg.sound);if(cfg.vibe)navigator.vibrate?.(120);}
   if(g.status==='done'&&g.gid&&counted.current!==g.gid){counted.current=g.gid;const me=g.players.find(q=>q.id===myId);
    if(me){const w=g.winner===me.color;setSt(s=>({...s,games:s.games+1,wins:s.wins+(w?1:0),coins:s.coins+10+(w?50:0)}));}}},[g]);
- useEffect(()=>{clearTimeout(autoTimer.current);if(!cfg.automove||!g||g.status!=='playing'||animating||isAnimatingRef.current)return;const cur=g.players[g.turn];if(cur?.id!==myId||g.roll===null)return;
+ useEffect(()=>{clearTimeout(autoTimer.current);if(!cfg.automove||!g||g.status!=='playing'||animating||isAnimatingRef.current||rolling)return;
+  const cur=g.players[g.turn];if(!cur||g.roll===null)return;
+  const isMyTurn=offline||cur.id===myId;if(!isMyTurn)return;
   const myTokens=g.tokens[cur.color];const mvs=legal(myTokens,g.roll);if(mvs.length===0)return;
   const shouldAuto=mvs.length===1||(mvs.length>1&&mvs.every(i=>myTokens[i]===-1));
-  if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{if(offline){const cl:Game=JSON.parse(JSON.stringify(g));doMove(cl,tgt);onState(cl);}else{send({t:'move',i:tgt});}},280);}return()=>clearTimeout(autoTimer.current);
- },[g?.status,g?.roll,g?.turn,animating,myId,cfg.automove]);
+  if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{
+   if(offline){setG(prevG=>{if(!prevG||prevG.status!=='playing'||prevG.roll==null)return prevG;const curP=prevG.players[prevG.turn];if(!curP)return prevG;const tok=prevG.tokens[curP.color];const valid=legal(tok,prevG.roll);if(!valid.includes(tgt))return prevG;const cl:Game=JSON.parse(JSON.stringify(prevG));doMove(cl,tgt);onState(cl);return cl;});}
+   else{send({t:'move',i:tgt});}
+  },320);}return()=>clearTimeout(autoTimer.current);
+ },[g?.status,g?.roll,g?.turn,animating,rolling,myId,offline,cfg.automove]);
  const startPassAndPlay=()=>{
   const cols=passCount===2?[0,2]:passCount===3?[0,1,2]:[0,1,2,3];
   const plrs=cols.map((c,idx)=>({
@@ -293,8 +298,8 @@ export default function App(){
   const isConn=offline||(p?(p.bot||(g.connected?.[p.id]!==false)):false);
   const isH=!offline&&p&&p.id===(g.hostId||g.players[0]?.id);
   const isSpk=!offline&&p&&!!speaking[p.id];
-  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className={'av'+(isSpk?' speaking':'')}>{p?(p.av||'🙂'):'?'}</div>
-   <div className="ci"><b>{p?p.name:'Waiting…'}{isH&&g.status==='lobby'?' 👑':''}{isSpk?<span className="wave-bars"><span></span><span></span><span></span></span>:null}</b><span>{p?(offline?(a?'Current Turn':`${h}/4 home`):(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:!isConn?'⚡ Reconnecting…':p.bot?'Bot':`${h}/4 home`)):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
+  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c],...(offline&&!p?{opacity:0.28,borderStyle:'dashed'}:{})} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className={'av'+(isSpk?' speaking':'')}>{p?(p.av||'🙂'):'—'}</div>
+   <div className="ci"><b>{p?p.name:(offline?'Inactive Seat':'Waiting…')}{isH&&g.status==='lobby'?' 👑':''}{isSpk?<span className="wave-bars"><span></span><span></span><span></span></span>:null}</b><span>{p?(offline?(a?'Current Turn':`${h}/4 home`):(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:!isConn?'⚡ Reconnecting…':p.bot?'Bot':`${h}/4 home`)):(offline?'Not in match':NAME[c])}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
  renderTokens.forEach((ts,c)=>{if(!g.players.some(p=>p.color===c))return;ts.forEach((p,i)=>{if(p>=0&&p<56&&!(stepping?.c===c&&stepping?.i===i)){const [x,y]=pos(c,p,i);const k=x+','+y;seen[k]=(seen[k]||0)+1;}});});
@@ -306,9 +311,9 @@ export default function App(){
   {Object.entries(streams).map(([k,s])=><Audio key={k} s={s}/>)}{err&&<p className="err">{err}</p>}
   <div className="cards">{card(0)}{card(1)}</div>
   <div className="boardwrap" style={{background:T.bg,borderColor:T.line,boxShadow:`0 8px 32px rgba(0,0,0,.7),0 0 24px ${T.glow}33`}}><svg viewBox="-0.15 -0.15 15.3 15.3" preserveAspectRatio="none">
-   {[0,1,2,3].map(c=>{const [ox,oy]=yard(c);const isTurn=g.status==='playing'&&cur?.color===c;return<g key={c}>
-    <rect x={ox+.5} y={oy+.5} width={5} height={5} rx={.7} fill={themeCol[c]} fillOpacity={isTurn?".24":".12"} stroke={themeCol[c]} strokeWidth={isTurn?".13":".08"} className={"glow"+(isTurn?" pulse-yard":"")} style={{color:themeCol[c]}}/>
-    {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={themeCol[c]} strokeOpacity=".4" strokeWidth=".05"/>;})}</g>;})}
+   {[0,1,2,3].map(c=>{const [ox,oy]=yard(c);const isTurn=g.status==='playing'&&cur?.color===c;const activeP=g.players.some(p=>p.color===c);return<g key={c}>
+    <rect x={ox+.5} y={oy+.5} width={5} height={5} rx={.7} fill={themeCol[c]} fillOpacity={!activeP?0.04:(isTurn?".24":".12")} stroke={themeCol[c]} strokeOpacity={!activeP?0.2:1} strokeWidth={isTurn?".13":".08"} className={"glow"+(isTurn?" pulse-yard":"")} style={{color:themeCol[c]}}/>
+    {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={themeCol[c]} strokeOpacity={!activeP?".15":".4"} strokeWidth=".05"/>;})}</g>;})}
    {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?themeCol[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
    {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,themeCol[c],`h${c}${k}`)))}
    <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?themeCol[cur?.color??0]:T.line} strokeWidth={mine&&g.roll===null?".08":".06"}/>
@@ -316,7 +321,7 @@ export default function App(){
     const isWon=p===56;
     if(p>=0&&!isWon&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
     const can=c===mc&&movable.includes(i);
-    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);if(offline){const cl:Game=JSON.parse(JSON.stringify(g));doMove(cl,i);onState(cl);}else{send({t:'move',i});}}}}>{can&&<circle r={.5} className="ring"/>}
+    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);if(offline){setG(prevG=>{if(!prevG||prevG.status!=='playing'||prevG.roll==null)return prevG;const curP=prevG.players[prevG.turn];if(!curP)return prevG;const tok=prevG.tokens[curP.color];const valid=legal(tok,prevG.roll);if(!valid.includes(i))return prevG;const cl:Game=JSON.parse(JSON.stringify(prevG));doMove(cl,i);onState(cl);return cl;});}else{send({t:'move',i});}}}}>{can&&<circle r={.5} className="ring"/>}
      <PieceGraphic shape={T.shape} color={themeCol[c]} isWon={isWon} isHop={isHop} /></g>;}))}
    {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
     return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>

@@ -35,8 +35,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:3px
 .card.act .ci span{color:var(--c);font-weight:700}
 .emo{position:absolute;right:4px;top:-10px;font-size:1.5rem;font-style:normal;animation:pop .35s;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6))}
 
-/* The Board - Maximized for Mobile Screen with Increased Vertical Height */
-.boardwrap{position:relative;width:100%;max-width:min(100%,calc(100dvh - 165px));aspect-ratio:1 / 1.14;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08);flex:none;overflow:hidden}
+/* The Board - Square aspect ratio fitted to screen height */
+.boardwrap{position:relative;width:100%;max-width:min(100%,calc(100dvh - 205px));max-height:calc(100dvh - 205px);aspect-ratio:1 / 1;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.08);flex:0 1 auto;overflow:hidden}
 .boardwrap svg{display:block;width:100%;height:100%}
 .cell{filter:drop-shadow(0 0 1px rgba(156,192,255,.35))}
 .glow{filter:drop-shadow(0 0 3px currentColor)}

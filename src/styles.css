@@ -110,4 +110,22 @@ h2{margin:0;font-size:1.5rem}h3{margin:10px 0 0}.sub{margin:0;color:#8ea2cc;font
 .room-callout .code{font-size:1.6rem;font-weight:900;color:#4aa3ff;letter-spacing:.18em;text-shadow:0 0 15px rgba(74,163,255,.45)}
 .room-callout .subnote{font-size:.75rem;color:#9fb3d9}
 .selected-theme{border-color:#38bdf8!important;box-shadow:0 0 16px rgba(56,189,248,.35)!important;background:rgba(20,38,76,.85)!important}
-@media(prefers-reduced-motion:reduce){.spin,.tok,.sheet,.dice,.ring,.emo,.pulse-yard,.tap-me,.chat-drawer{animation:none;transition:none}}
+
+/* Live speaking ring and soundwave indicator */
+.av.speaking{border-color:#22c55e!important;box-shadow:0 0 0 3px rgba(34,197,94,.45),0 0 16px rgba(34,197,94,.9)!important;animation:speakPulse .75s infinite alternate ease-in-out}
+@keyframes speakPulse{0%{box-shadow:0 0 0 2px rgba(34,197,94,.5),0 0 8px rgba(34,197,94,.6);transform:scale(1)}100%{box-shadow:0 0 0 5px rgba(34,197,94,.25),0 0 18px rgba(34,197,94,1);transform:scale(1.06)}}
+.wave-bars{display:inline-flex;align-items:center;gap:2px;height:12px;margin-left:4px}
+.wave-bars span{width:2px;height:10px;background:#22c55e;border-radius:1px;animation:waveBar .6s infinite alternate ease-in-out}
+.wave-bars span:nth-child(2){animation-delay:.15s;height:14px}
+.wave-bars span:nth-child(3){animation-delay:.3s;height:8px}
+@keyframes waveBar{0%{transform:scaleY(.3)}100%{transform:scaleY(1.1)}}
+
+/* Pass & Play Offline Mode Styles */
+.pass-banner{background:rgba(16,26,48,.88);border:1.5px solid var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 40%,transparent);border-radius:12px;padding:5px 10px;display:flex;align-items:center;justify-content:space-between;font-size:.82rem;font-weight:700;color:#fff}
+.pass-pill{background:color-mix(in srgb,var(--c) 25%,transparent);border:1px solid var(--c);padding:2px 8px;border-radius:999px;font-size:.74rem;color:#fff}
+.pill-group{display:flex;gap:6px;width:100%}
+.pill-btn{flex:1;padding:10px 8px;border-radius:12px;background:#142038;border:1.5px solid #2a3d68;color:#9fb3d9;font-weight:700;font-size:.86rem;text-align:center;cursor:pointer;transition:all .15s}
+.pill-btn.active{background:linear-gradient(135deg,#1b3b6f,#16294d);border-color:#38bdf8;color:#fff;box-shadow:0 0 14px rgba(56,189,248,.35)}
+.player-setup-card{background:rgba(17,27,49,.75);border:1px solid #253963;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+
+@media(prefers-reduced-motion:reduce){.spin,.tok,.sheet,.dice,.ring,.emo,.pulse-yard,.tap-me,.chat-drawer,.av.speaking,.wave-bars span{animation:none;transition:none}}

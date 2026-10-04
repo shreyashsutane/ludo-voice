@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
-import {Game,START,SAFE,legal} from './engine';import {Voice} from './voice';
+import {Game,START,SAFE,legal,doRoll,doMove,newGame} from './engine';import {Voice} from './voice';
+import {useAudioActivity} from './audioMeter';
 import {THEMES,AV,Stats,Cfg,loadStats,loadCfg,level,sfx,initAudio,TabBar,Profile,Shop,Ranks,Settings} from './ui';
 const COL=['#ff4757','#22d37a','#3b82f6','#f5b800'],NAME=['Red','Green','Blue','Yellow'];
 function PieceGraphic({shape,color,isWon,isHop}:{shape:string;color:string;isWon:boolean;isHop:boolean}){
@@ -41,6 +42,11 @@ export default function App(){
  const pendingG=useRef<Game|null>(null);const tokensRef=useRef<number[][]>([0,1,2,3].map(()=>[-1,-1,-1,-1]));
  const isAnimatingRef=useRef(false);const onStateRef=useRef<(g:Game)=>void>();
  const [streams,setStreams]=useState<Record<string,MediaStream>>({});const ws=useRef<WebSocket>();const voice=useRef<Voice>();
+ const [offline,setOffline]=useState(false);const [passSetup,setPassSetup]=useState(false);
+ const [passCount,setPassCount]=useState<2|3|4>(4);
+ const [passNames,setPassNames]=useState<string[]>(['Player 1','Player 2','Player 3','Player 4']);
+ const [passAvs,setPassAvs]=useState<string[]>(['😎','🦊','🐼','🦁']);
+ const speaking=useAudioActivity(streams,voice.current?.stream,myId,on);
  const prev=useRef<Game|null>(null);const counted=useRef('');const cfgRef=useRef(cfg);const lastSeq=useRef(0);
  const send=(m:any)=>ws.current?.readyState===1&&ws.current.send(JSON.stringify(m));
  const sendChat=(t:string)=>{const cleanT=t.trim().slice(0,60);if(!cleanT)return;send({t:'chat',text:cleanT});setMsg('');sfx('chat',cfgRef.current.sound);};
@@ -150,11 +156,30 @@ export default function App(){
  useEffect(()=>{clearTimeout(autoTimer.current);if(!cfg.automove||!g||g.status!=='playing'||animating||isAnimatingRef.current)return;const cur=g.players[g.turn];if(cur?.id!==myId||g.roll===null)return;
   const myTokens=g.tokens[cur.color];const mvs=legal(myTokens,g.roll);if(mvs.length===0)return;
   const shouldAuto=mvs.length===1||(mvs.length>1&&mvs.every(i=>myTokens[i]===-1));
-  if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{send({t:'move',i:tgt});},280);}return()=>clearTimeout(autoTimer.current);
+  if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{if(offline){const cl:Game=JSON.parse(JSON.stringify(g));doMove(cl,tgt);onState(cl);}else{send({t:'move',i:tgt});}},280);}return()=>clearTimeout(autoTimer.current);
  },[g?.status,g?.roll,g?.turn,animating,myId,cfg.automove]);
+ const startPassAndPlay=()=>{
+  const cols=passCount===2?[0,2]:passCount===3?[0,1,2]:[0,1,2,3];
+  const plrs=cols.map((c,idx)=>({
+   id:`local-${c}`,
+   name:(passNames[idx]||`Player ${idx+1}`).trim()||`Player ${idx+1}`,
+   av:passAvs[idx]||AV[idx%AV.length],
+   color:c,
+   bot:false
+  }));
+  const og:Game={...newGame(),gid:'offline-'+Date.now(),players:plrs,status:'playing',deadline:0};
+  setOffline(true);setPassSetup(false);
+  tokensRef.current=og.tokens.map(ts=>[...ts]);setDispTokens(og.tokens.map(ts=>[...ts]));
+  setG(og);
+ };
  const enter=(r:string)=>{r=clean(r);if(!name.trim()){setErr('Please enter your name');return;}if(r.length!==6){setErr('Invalid 6-character room code');return;}
   setErr('');location.hash=r;setRoom(r);setGo(true);};
- const leave=()=>{if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
+ const leave=()=>{
+  if(offline){
+   if(confirm('Quit offline game?')){setOffline(false);setG(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setDispTokens(null);}
+   return;
+  }
+  if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
  const toggleVoice=async()=>{if(!voice.current){setErr('Still connecting. Try again in a moment.');return;}try{if(on){voice.current.stop();setOn(false);}else{await voice.current.start();setOn(true);setMuted(false);setErr('');}}catch{setErr('Microphone blocked. Allow mic access and retry.');}};
  const T=THEMES[st.theme]||THEMES[0],L=level(st);
  const themeCol=T.colors||COL;
@@ -194,20 +219,65 @@ export default function App(){
   ):(
    <div className="homev"><div className="me"><div className="av big">{st.av}</div><div className="ci"><b>{name||'Player'}</b><span>Level {L.l} · 🪙 {st.coins}</span></div></div>
     <h1>LUDO <span>ONLINE</span></h1><p className="sub">Play with friends and talk while you play. 2 to 4 players.</p>
-    <input placeholder="Your name" value={name} maxLength={14} onChange={e=>setName(e.target.value)}/>
-    <button className="cta" onClick={()=>enter(makeCode())}>CREATE ROOM</button>
-    <div className="row"><input placeholder="Room code" defaultValue={room} id="rc" maxLength={6}/><button className="alt" onClick={()=>enter((document.getElementById('rc') as HTMLInputElement).value)}>Join</button></div>
+    {passSetup?(
+     <div className="player-setup-card" style={{gap:'12px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+       <span style={{fontWeight:800,fontSize:'1.1rem'}}>📱 Pass & Play Setup</span>
+       <button className="alt" style={{padding:'4px 10px',fontSize:'.78rem'}} onClick={()=>setPassSetup(false)}>✕ Cancel</button>
+      </div>
+      <p className="sub" style={{margin:0,fontSize:'.82rem'}}>Play with friends on 1 phone. Pass device on each turn!</p>
+      <div>
+       <label style={{fontSize:'.74rem',color:'#8ea2cc',fontWeight:700,display:'block',marginBottom:'6px'}}>NUMBER OF PLAYERS</label>
+       <div className="pill-group">
+        {([2,3,4] as const).map(n=><button key={n} type="button" className={'pill-btn'+(passCount===n?' active':'')} onClick={()=>setPassCount(n)}>{n} Players</button>)}
+       </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+       {Array.from({length:passCount}).map((_,idx)=>{
+        const colIdx=passCount===2?(idx===0?0:2):idx;
+        return<div key={idx} style={{display:'flex',alignItems:'center',gap:'8px',background:'rgba(255,255,255,.04)',padding:'6px 10px',borderRadius:'10px',borderLeft:`4px solid ${COL[colIdx]}`}}>
+         <span style={{fontSize:'1.3rem'}}>{passAvs[idx]||'🙂'}</span>
+         <input style={{padding:'8px',fontSize:'.88rem'}} value={passNames[idx]||''} maxLength={12} placeholder={`Player ${idx+1}`} onChange={e=>{const n=[...passNames];n[idx]=e.target.value;setPassNames(n);}}/>
+         <div style={{display:'flex',gap:'2px'}}>
+          {['😎','🦊','🐼','🦁','🤖','👑'].slice(0,3).map(a=><button key={a} type="button" style={{background:'none',padding:'2px',fontSize:'.95rem'}} onClick={()=>{const n=[...passAvs];n[idx]=a;setPassAvs(n);}}>{a}</button>)}
+         </div>
+        </div>;
+       })}
+      </div>
+      <button className="cta" style={{width:'100%',marginTop:'4px'}} onClick={startPassAndPlay}>▶ START PASS & PLAY</button>
+     </div>
+    ):(
+     <>
+      <input placeholder="Your name" value={name} maxLength={14} onChange={e=>setName(e.target.value)}/>
+      <button className="cta" onClick={()=>enter(makeCode())}>CREATE ONLINE ROOM</button>
+      <div className="row"><input placeholder="Room code" defaultValue={room} id="rc" maxLength={6}/><button className="alt" onClick={()=>enter((document.getElementById('rc') as HTMLInputElement).value)}>Join</button></div>
+      <div style={{display:'flex',alignItems:'center',gap:'10px',margin:'4px 0'}}>
+       <div style={{flex:1,height:'1px',background:'rgba(255,255,255,.1)'}}></div>
+       <span style={{fontSize:'.72rem',color:'#8ea2cc',fontWeight:700,letterSpacing:'.06em'}}>OR PLAY OFFLINE</span>
+       <div style={{flex:1,height:'1px',background:'rgba(255,255,255,.1)'}}></div>
+      </div>
+      <button className="alt" style={{border:'1.5px solid #38bdf8',background:'rgba(16,36,70,.7)',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',fontWeight:800,fontSize:'.95rem',padding:'12px',color:'#fff'}} onClick={()=>setPassSetup(true)}>
+       📱 PASS & PLAY (1 PHONE)
+      </button>
+     </>
+    )}
     {err&&<p className="err">{err}</p>}
    </div>
   ))}
   {tab==='profile'&&<Profile st={st} setSt={setSt} name={name} setName={setName}/>}{tab==='shop'&&<Shop st={st} setSt={setSt}/>}
   {tab==='ranks'&&<Ranks me={myId}/>}{tab==='settings'&&<Settings cfg={cfg} setCfg={setCfg} reset={()=>{localStorage.clear();location.hash='';location.reload();}}/>}</div><TabBar tab={tab} set={setTab}/></>;}
- const me=g.players.find(p=>p.id===myId),cur=g.players[g.turn],mine=g.status==='playing'&&cur?.id===myId,mc=me?.color??0,host=me?.id===(g.hostId||g.players[0]?.id);
+ const cur=g.players[g.turn],me=offline?cur:g.players.find(p=>p.id===myId),mine=g.status==='playing'&&(offline||cur?.id===myId),mc=me?.color??cur?.color??0,host=offline||me?.id===(g.hostId||g.players[0]?.id);
  const mvs=mine&&g.roll!==null?legal(g.tokens[mc],g.roll):[];
  const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
  const movable=!animating&&mine&&g.roll!==null?mvs:[];
  const seen:Record<string,number>={};const secs=Math.max(0,Math.ceil((g.deadline-now)/1000));
- let label='ROLL DICE',dis=true,act=()=>{initAudio();sfx('roll',cfg.sound);startRollAnim();send({t:'roll'});},cap='';
+ let label='ROLL DICE',dis=true,act=()=>{
+  initAudio();sfx('roll',cfg.sound);startRollAnim();
+  if(offline){
+   const v=1+Math.floor(Math.random()*6);
+   setTimeout(()=>{setG(p=>p?(()=>{const cl:Game=JSON.parse(JSON.stringify(p));doRoll(cl,v);return cl;})():null);},420);
+  }else{send({t:'roll'});}
+ },cap='';
  if(g.status==='lobby'){
   const solo=g.players.length===1;
   label=host?(solo?'START (WITH BOTS)':'START GAME'):'WAITING FOR HOST';
@@ -216,21 +286,23 @@ export default function App(){
   cap=`${g.players.length}/4 joined`;
  }
  else if(g.status==='playing'){const can=!animating&&mine&&g.roll===null&&!rolling;label=can?'ROLL DICE':mine?(animating?'MOVING…':(rolling?'ROLLING…':(isOne&&cfg.automove?'AUTO-MOVING…':'PICK A TOKEN'))):`${cur.name.toUpperCase()}'S TURN`;dis=!can;cap=mine?(rolling?'Rolling dice…':(g.roll===null?'Your turn':(animating?'Moving forward…':(isOne&&cfg.automove?'Auto-moving…':'Tap a glowing token')))):`${cur.name}'s turn`;}
- else{label=host?'PLAY AGAIN':'GAME OVER';dis=!host;act=()=>send({t:'again'});cap=`${NAME[g.winner!]} wins!`;}
+ else{label=host?'PLAY AGAIN':'GAME OVER';dis=!host;act=()=>{if(offline){startPassAndPlay();}else{send({t:'again'});}};cap=`${NAME[g.winner!]} wins!`;}
  const share=()=>{if(navigator.share)navigator.share({title:'Ludo Online',url:location.href}).catch(()=>{});else{navigator.clipboard?.writeText(location.href);say('Invite link copied');}};
  const cell=(x:number,y:number,f:string,k:string,star=false)=><g key={k}><rect x={x+.06} y={y+.06} width={.88} height={.88} rx={.14} fill={f} className="cell"/>{star&&<text x={x+.5} y={y+.72} fontSize=".6" textAnchor="middle" fill="#ffb020">★</text>}</g>;
  const card=(c:number)=>{const p=g.players.find(q=>q.color===c);const a=g.status==='playing'&&!!p&&cur?.id===p.id;const h=g.tokens[c].filter(x=>x===56).length;
-  const isConn=p?(p.bot||(g.connected?.[p.id]!==false)):false;
-  const isH=p&&p.id===(g.hostId||g.players[0]?.id);
-  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className="av">{p?(p.av||'🙂'):'?'}</div>
-   <div className="ci"><b>{p?p.name:'Waiting…'}{isH&&g.status==='lobby'?' 👑':''}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:!isConn?'⚡ Reconnecting…':p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
+  const isConn=offline||(p?(p.bot||(g.connected?.[p.id]!==false)):false);
+  const isH=!offline&&p&&p.id===(g.hostId||g.players[0]?.id);
+  const isSpk=!offline&&p&&!!speaking[p.id];
+  return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className={'av'+(isSpk?' speaking':'')}>{p?(p.av||'🙂'):'?'}</div>
+   <div className="ci"><b>{p?p.name:'Waiting…'}{isH&&g.status==='lobby'?' 👑':''}{isSpk?<span className="wave-bars"><span></span><span></span><span></span></span>:null}</b><span>{p?(offline?(a?'Current Turn':`${h}/4 home`):(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:!isConn?'⚡ Reconnecting…':p.bot?'Bot':`${h}/4 home`)):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
  renderTokens.forEach((ts,c)=>{if(!g.players.some(p=>p.color===c))return;ts.forEach((p,i)=>{if(p>=0&&p<56&&!(stepping?.c===c&&stepping?.i===i)){const [x,y]=pos(c,p,i);const k=x+','+y;seen[k]=(seen[k]||0)+1;}});});
- return<div className="game">{!online&&<div className="banner">Reconnecting…</div>}{toast&&<div className="toast">{toast}</div>}
-  <header><button className="ic" onClick={leave} title="Leave room">←</button>
-  <div className="ttl">LUDO <span>ONLINE</span><small onClick={share} style={{cursor:'pointer'}} title="Tap to share invite link">Room {room} 🔗</small></div>
-  <button className={'ic'+(on?' live':'')} onClick={toggleVoice} title="Voice chat">🎙</button></header>
+ return<div className="game">{!online&&!offline&&<div className="banner">Reconnecting…</div>}{toast&&<div className="toast">{toast}</div>}
+  <header><button className="ic" onClick={leave} title={offline?"Exit offline game":"Leave room"}>←</button>
+  <div className="ttl">{offline?(<>PASS & <span>PLAY</span><small style={{color:'#34d399'}}>📱 1 Device Offline</small></>):(<>LUDO <span>ONLINE</span><small onClick={share} style={{cursor:'pointer'}} title="Tap to share invite link">Room {room} 🔗</small></>)}</div>
+  {offline?<div style={{width:'32px'}}/>:<button className={'ic'+(on?' live':'')} onClick={toggleVoice} title="Voice chat">🎙</button>}</header>
+  {offline&&<div className="pass-banner" style={{'--c':themeCol[cur?.color??0]} as any}><span>👉 Turn: <b>{cur?.name}</b></span><span className="pass-pill" style={{'--c':themeCol[cur?.color??0]} as any}>Pass phone to {cur?.name}</span></div>}
   {Object.entries(streams).map(([k,s])=><Audio key={k} s={s}/>)}{err&&<p className="err">{err}</p>}
   <div className="cards">{card(0)}{card(1)}</div>
   <div className="boardwrap" style={{background:T.bg,borderColor:T.line,boxShadow:`0 8px 32px rgba(0,0,0,.7),0 0 24px ${T.glow}33`}}><svg viewBox="-0.15 -0.15 15.3 15.3" preserveAspectRatio="none">
@@ -244,7 +316,7 @@ export default function App(){
     const isWon=p===56;
     if(p>=0&&!isWon&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
     const can=c===mc&&movable.includes(i);
-    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);send({t:'move',i});}}}>{can&&<circle r={.5} className="ring"/>}
+    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);if(offline){const cl:Game=JSON.parse(JSON.stringify(g));doMove(cl,i);onState(cl);}else{send({t:'move',i});}}}}>{can&&<circle r={.5} className="ring"/>}
      <PieceGraphic shape={T.shape} color={themeCol[c]} isWon={isWon} isHop={isHop} /></g>;}))}
    {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
     return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
@@ -255,7 +327,11 @@ export default function App(){
   <div className="cards">{card(3)}{card(2)}</div>
   {pick&&<div className="picker">{EMO.map(e=><button key={e} onClick={()=>{send({t:'emo',e});setPick(false);}}>{e}</button>)}</div>}
   <div className="bar">
-   {g.status==='lobby'?(
+   {offline?(
+    <><button className="side" onClick={leave}>Exit 🚪</button>
+    <button className="cta" disabled={dis} onClick={act}>{label}</button>
+    <button className="side" onClick={()=>say(`Pass phone to ${cur.name}!`)}>Pass 📱</button></>
+   ):g.status==='lobby'?(
     <><button className="side" onClick={()=>host&&g.players.length<4?send({t:'add_bot'}):share()}>{host&&g.players.length<4?'+ Bot 🤖':'Share 🔗'}</button>
     <button className="cta" disabled={dis} onClick={act}>{label}</button>
     <button className="side" onClick={()=>host&&g.players.some(p=>p.bot)?send({t:'kick_bot'}):share()}>{host&&g.players.some(p=>p.bot)?'- Bot ❌':'Invite 📋'}</button></>
@@ -270,4 +346,7 @@ export default function App(){
    <div className="chat-list">{chats.length===0?<div style={{color:'#8ea2cc',fontSize:'.78rem',textAlign:'center',padding:'8px 0'}}>No messages yet. Send a quick chat!</div>:chats.map((c,i)=><div key={i} className="chat-item"><b style={{color:themeCol[c.color]}}>{c.name}:</b><span>{c.text}</span></div>)}</div>
    <form className="chat-form" onSubmit={e=>{e.preventDefault();sendChat(msg);}}><input className="chat-input" placeholder="Type a message…" value={msg} maxLength={60} onChange={e=>setMsg(e.target.value)}/><button type="submit" className="chat-send">Send</button></form></div>}
   {g.status==='done'&&<div className="modal"><div className="sheet"><div className="trophy">🏆</div><h2 style={{color:themeCol[g.winner!]}}>{win?.name} wins!</h2>
-   {me&&<p className="sub">{g.winner===mc?'+60':'+10'} 🪙 earned</p>}{host&&<button className="cta" onClick={()=>send({t:'again'})}>PLAY AGAIN</button>}{!host&&<p className="sub">Waiting for the host to start another game…</p>}<button className="alt" onClick={leave}>Leave room</button></div></div>}</div>;}
+   {!offline&&me&&<p className="sub">{g.winner===mc?'+60':'+10'} 🪙 earned</p>}
+   {offline&&<p className="sub">Awesome match! Well played everyone.</p>}
+   <button className="cta" onClick={act}>PLAY AGAIN</button>
+   <button className="alt" onClick={leave}>{offline?'Back to Menu':'Leave room'}</button></div></div>}</div>;}

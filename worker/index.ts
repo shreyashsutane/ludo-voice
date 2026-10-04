@@ -35,6 +35,15 @@ export class Room extends DurableObject{
  pid(ws:WebSocket){return (ws.deserializeAttachment() as any)?.pid as string|undefined;}
  ok(ws:WebSocket){const t=Date.now(),a=(this.rl.get(ws)||[]).filter(x=>t-x<10000);a.push(t);this.rl.set(ws,a);return a.length<=120;}
  bcast(o:any){const s=JSON.stringify(o);for(const w of this.ctx.getWebSockets())try{w.send(s);}catch{}}
+ activePids():Set<string>{const s=new Set<string>();for(const w of this.ctx.getWebSockets()){const p=this.pid(w);if(p)s.add(p);}return s;}
+ syncPresence(g:Game){
+  const pids=this.activePids();
+  g.connected={};
+  for(const p of g.players){g.connected[p.id]=p.bot||pids.has(p.id);}
+  const curHost=g.players.find(p=>p.id===g.hostId);
+  const hostOnline=curHost&&(curHost.bot||pids.has(curHost.id));
+  if(!hostOnline){const next=g.players.find(p=>!p.bot&&pids.has(p.id))||g.players[0];if(next)g.hostId=next.id;}
+ }
  plan(g:Game){
   if(this.botTimer){clearTimeout(this.botTimer);this.botTimer=null;}
   if(g.status!=='playing'||this.ctx.getWebSockets().length===0)return;
@@ -46,6 +55,8 @@ export class Room extends DurableObject{
   let g:Game=(await this.ctx.storage.get<Game>('g'))??newGame();
   if(g.status!=='playing')return;
   const cur=g.players[g.turn];if(!cur)return;
+  const now=Date.now();
+  if(!cur.bot&&now<g.deadline-100)return;
   if(!cur.bot){
    cur.miss=(cur.miss||0)+1;
    if(cur.miss>=2)cur.bot=true;
@@ -61,8 +72,12 @@ export class Room extends DurableObject{
   arm(g);
   await this.save(g);
  }
- async save(g:Game){if(g.status==='done'&&!g.counted&&g.players.length>1){g.counted=true;const E=this.env as any;try{await E.LB.get(E.LB.idFromName('global')).record(g.players.map(p=>({id:p.id,name:p.name,av:p.av||'🙂',win:p.color===g.winner})));}catch(e){console.error(e);}}
-  await this.ctx.storage.put('g',g);await this.ctx.storage.setAlarm(g.status==='playing'?g.deadline:Date.now()+IDLE_MS);this.bcast({t:'state',g});this.plan(g);}
+ async save(g:Game){
+  this.syncPresence(g);
+  g.seq=(g.seq||0)+1;
+  if(g.status==='done'&&!g.counted&&g.players.length>1){g.counted=true;const E=this.env as any;try{await E.LB.get(E.LB.idFromName('global')).record(g.players.map(p=>({id:p.id,name:p.name,av:p.av||'🙂',win:p.color===g.winner})));}catch(e){console.error(e);}}
+  await this.ctx.storage.put('g',g);await this.ctx.storage.setAlarm(g.status==='playing'?g.deadline:Date.now()+IDLE_MS);this.bcast({t:'state',g});this.plan(g);
+ }
  async webSocketMessage(ws:WebSocket,raw:string|ArrayBuffer){
   if(typeof raw!=='string'||raw.length>MAX_MSG)return;
   if(!this.ok(ws)){ws.close(1008,'Rate limit');return;}
@@ -75,35 +90,50 @@ export class Room extends DurableObject{
   if(m.t==='chat'){const txt=String(m.text||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,60);if(txt){let g:Game=(await this.ctx.storage.get<Game>('g'))??newGame();const p=g.players.find(q=>q.id===me);this.bcast({t:'chat',pid:me,name:p?.name||'Player',text:txt,color:p?.color??0});}return;}
   let g:Game=(await this.ctx.storage.get<Game>('g'))??newGame();
   const cur=g.players[g.turn];
+  const isHost=(me===g.hostId)||(!g.hostId&&g.players[0]?.id===me);
   if(m.t==='join'){const name=String(m.name??'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,14)||'Player';
    const p=g.players.find(q=>q.id===me);
    const av=AVS.includes(m.av)?m.av:'🙂';
    if(p){p.name=name;p.av=av;p.bot=false;p.miss=0;}
    else if(g.status==='lobby'&&g.players.length<4){const used=g.players.map(q=>q.color);g.players.push({id:me,name,av,color:[0,1,2,3].find(c=>!used.includes(c))!});}
+   else if(g.status==='done'&&this.ctx.getWebSockets().length===1){
+    g={...newGame(),gid:crypto.randomUUID(),players:[{id:me,name,av,color:0}],hostId:me,status:'lobby'};
+   }
+   if(!g.hostId&&g.players.length>0)g.hostId=g.players[0].id;
    if(g.status==='playing'&&this.ctx.getWebSockets().length===1)arm(g);
    ws.send(JSON.stringify({t:'you',id:me}));}
-  else if(m.t==='add_bot'&&g.status==='lobby'&&g.players[0]?.id===me&&g.players.length<4){
+  else if(m.t==='add_bot'&&g.status==='lobby'&&isHost&&g.players.length<4){
    const used=g.players.map(q=>q.color);const color=[0,1,2,3].find(c=>!used.includes(c))!;
    const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const bCount=g.players.filter(q=>q.bot).length;
    g.players.push({id:`bot-${color}`,name:BOT_NAMES[bCount]||`Bot ${color+1}`,av:'🤖',color,bot:true});}
-  else if(m.t==='kick_bot'&&g.status==='lobby'&&g.players[0]?.id===me){
+  else if(m.t==='kick_bot'&&g.status==='lobby'&&isHost){
    const bIdx=[...g.players].reverse().findIndex(q=>q.bot);
    if(bIdx!==-1)g.players.splice(g.players.length-1-bIdx,1);}
-  else if(m.t==='start'&&g.status==='lobby'&&g.players[0]?.id===me){
+  else if(m.t==='start'&&g.status==='lobby'&&isHost){
    const players=g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot}));
    if(players.length===1){
     const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const used=players.map(q=>q.color);
     [0,1,2,3].filter(c=>!used.includes(c)).forEach((c,idx)=>{
      players.push({id:`bot-${c}`,name:BOT_NAMES[idx],av:'🤖',color:c,bot:true});
     });}
-   g={...newGame(),gid:crypto.randomUUID(),players,status:'playing'};arm(g);}
-  else if(m.t==='again'&&g.status==='done'&&g.players[0]?.id===me){g={...newGame(),players:g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot}))};}
+   g={...newGame(),gid:crypto.randomUUID(),players,hostId:me,status:'playing'};arm(g);}
+  else if(m.t==='again'&&g.status==='done'&&isHost){
+   g={...newGame(),gid:crypto.randomUUID(),players:g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot})),hostId:me,status:'lobby'};
+  }
   else if(g.status==='playing'&&cur?.id===me){cur.bot=false;cur.miss=0;
    if(m.t==='roll'&&g.roll===null)doRoll(g,1+rnd(6));else if(m.t==='move'&&g.roll!==null&&Number.isInteger(m.i)){if(!doMove(g,m.i))return;}else return;arm(g);}
   else return;
-  await this.save(g);}
+  await this.save(g);
+ }
  async alarm(){await this.step();}
- async webSocketClose(ws:WebSocket){this.rl.delete(ws);if(this.ctx.getWebSockets().length===0&&this.botTimer){clearTimeout(this.botTimer);this.botTimer=null;}try{ws.close();}catch{}}}
+ async webSocketClose(ws:WebSocket){
+  this.rl.delete(ws);
+  let g:Game|undefined=await this.ctx.storage.get<Game>('g');
+  if(g){await this.save(g);}
+  if(this.ctx.getWebSockets().length===0&&this.botTimer){clearTimeout(this.botTimer);this.botTimer=null;}
+  try{ws.close();}catch{}
+ }
+}
 export class Leaderboard extends DurableObject{
  async record(rows:{id:string;name:string;av:string;win:boolean}[]){const m:Record<string,any>=(await this.ctx.storage.get('m'))||{};
   for(const r of rows){const e=m[r.id]||{n:r.name,av:r.av,w:0,g:0};e.n=r.name;e.av=r.av;e.g++;if(r.win)e.w++;m[r.id]=e;}

@@ -41,7 +41,7 @@ export default function App(){
  const pendingG=useRef<Game|null>(null);const tokensRef=useRef<number[][]>([0,1,2,3].map(()=>[-1,-1,-1,-1]));
  const isAnimatingRef=useRef(false);const onStateRef=useRef<(g:Game)=>void>();
  const [streams,setStreams]=useState<Record<string,MediaStream>>({});const ws=useRef<WebSocket>();const voice=useRef<Voice>();
- const prev=useRef<Game|null>(null);const counted=useRef('');const cfgRef=useRef(cfg);
+ const prev=useRef<Game|null>(null);const counted=useRef('');const cfgRef=useRef(cfg);const lastSeq=useRef(0);
  const send=(m:any)=>ws.current?.readyState===1&&ws.current.send(JSON.stringify(m));
  const sendChat=(t:string)=>{const cleanT=t.trim().slice(0,60);if(!cleanT)return;send({t:'chat',text:cleanT});setMsg('');sfx('chat',cfgRef.current.sound);};
  const [rolling,setRolling]=useState(false);const [rollFace,setRollFace]=useState<number|null>(null);
@@ -67,6 +67,8 @@ export default function App(){
  useEffect(()=>{crypto.subtle.digest('SHA-256',new TextEncoder().encode(key)).then(b=>setMyId([...new Uint8Array(b).slice(0,8)].map(x=>x.toString(16).padStart(2,'0')).join('')));},[]);
  useEffect(()=>{if(g?.status!=='playing')return;const i=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(i);},[g?.status]);
  const onState=(newG:Game)=>{
+  if(newG.seq&&lastSeq.current&&newG.seq<lastSeq.current)return;
+  if(newG.seq)lastSeq.current=newG.seq;
   if(newG.status==='lobby'||!tokensRef.current){
    clearTimeout(animTimer.current);pendingG.current=null;isAnimatingRef.current=false;
    tokensRef.current=newG.tokens.map(ts=>[...ts]);setDispTokens(newG.tokens.map(ts=>[...ts]));
@@ -95,9 +97,12 @@ export default function App(){
    else{finishAnim();}}};
   animTimer.current=setTimeout(doStep,30);};
  onStateRef.current=onState;
- useEffect(()=>{if(!room||!go)return;let dead=false,t:any,ping:any;
-  const open=()=>{const w=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/${room}`);ws.current=w;
-   w.onopen=()=>{setOnline(true);w.send(JSON.stringify({t:'join',key,name,av:st.av}));ping=setInterval(()=>w.readyState===1&&w.send('ping'),25000);};
+ useEffect(()=>{if(!room||!go)return;let dead=false,t:any,ping:any,retry=0;
+  const open=()=>{
+   if(dead)return;
+   clearTimeout(t);
+   const w=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/${room}`);ws.current=w;
+   w.onopen=()=>{retry=0;setOnline(true);w.send(JSON.stringify({t:'join',key,name,av:st.av}));clearInterval(ping);ping=setInterval(()=>w.readyState===1&&w.send('ping'),20000);};
    w.onmessage=e=>{if(e.data==='pong')return;const m=JSON.parse(e.data);if(m.t==='state')onStateRef.current?.(m.g);
     else if(m.t==='you'){setMyId(m.id);if(!voice.current)voice.current=new Voice(m.id,send,(p,s)=>setStreams(o=>{const n={...o};s?n[p]=s:delete n[p];return n;}));}
     else if(m.t==='sig')voice.current?.onSig(m.from,m.data);
@@ -107,8 +112,35 @@ export default function App(){
      setBubble(o=>({...o,[m.pid]:m.text}));
      sfx('chat',cfgRef.current.sound);
      setTimeout(()=>setBubble(o=>{const n={...o};delete n[m.pid];return n;}),3500);};};
-   w.onclose=()=>{setOnline(false);clearInterval(ping);if(!dead)t=setTimeout(open,1500);};};open();
-  return()=>{dead=true;clearTimeout(t);clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;};},[room,go]);
+   w.onclose=()=>{
+    setOnline(false);clearInterval(ping);
+    if(!dead){
+     const delay=Math.min(8000,800*Math.pow(1.4,retry))+Math.random()*300;
+     retry++;
+     t=setTimeout(open,delay);
+    }
+   };
+  };
+  open();
+  const onWake=()=>{
+   if(dead)return;
+   if(!ws.current||ws.current.readyState===WebSocket.CLOSED||ws.current.readyState===WebSocket.CLOSING){
+    retry=0;open();
+   }else if(ws.current.readyState===WebSocket.OPEN){
+    ws.current.send('ping');
+   }
+  };
+  const onVis=()=>{if(document.visibilityState==='visible')onWake();};
+  document.addEventListener('visibilitychange',onVis);
+  window.addEventListener('online',onWake);
+  return()=>{
+   dead=true;clearTimeout(t);clearInterval(ping);
+   document.removeEventListener('visibilitychange',onVis);
+   window.removeEventListener('online',onWake);
+   clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);
+   isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;
+  };
+ },[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
   if(g.status==='done'&&p.status!=='done')sfx('win',cfg.sound);
   else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn)){sfx('roll',cfg.sound);startRollAnim();}
@@ -170,7 +202,7 @@ export default function App(){
   ))}
   {tab==='profile'&&<Profile st={st} setSt={setSt} name={name} setName={setName}/>}{tab==='shop'&&<Shop st={st} setSt={setSt}/>}
   {tab==='ranks'&&<Ranks me={myId}/>}{tab==='settings'&&<Settings cfg={cfg} setCfg={setCfg} reset={()=>{localStorage.clear();location.hash='';location.reload();}}/>}</div><TabBar tab={tab} set={setTab}/></>;}
- const me=g.players.find(p=>p.id===myId),cur=g.players[g.turn],mine=g.status==='playing'&&cur?.id===myId,mc=me?.color??0,host=g.players[0]?.id===myId;
+ const me=g.players.find(p=>p.id===myId),cur=g.players[g.turn],mine=g.status==='playing'&&cur?.id===myId,mc=me?.color??0,host=me?.id===(g.hostId||g.players[0]?.id);
  const mvs=mine&&g.roll!==null?legal(g.tokens[mc],g.roll):[];
  const isOne=mvs.length===1||(mvs.length>1&&mvs.every(i=>g.tokens[mc][i]===-1));
  const movable=!animating&&mine&&g.roll!==null?mvs:[];
@@ -188,8 +220,10 @@ export default function App(){
  const share=()=>{if(navigator.share)navigator.share({title:'Ludo Online',url:location.href}).catch(()=>{});else{navigator.clipboard?.writeText(location.href);say('Invite link copied');}};
  const cell=(x:number,y:number,f:string,k:string,star=false)=><g key={k}><rect x={x+.06} y={y+.06} width={.88} height={.88} rx={.14} fill={f} className="cell"/>{star&&<text x={x+.5} y={y+.72} fontSize=".6" textAnchor="middle" fill="#ffb020">★</text>}</g>;
  const card=(c:number)=>{const p=g.players.find(q=>q.color===c);const a=g.status==='playing'&&!!p&&cur?.id===p.id;const h=g.tokens[c].filter(x=>x===56).length;
+  const isConn=p?(p.bot||(g.connected?.[p.id]!==false)):false;
+  const isH=p&&p.id===(g.hostId||g.players[0]?.id);
   return<div key={c} className={'card'+(a?' act':'')+(p?'':' empty')} style={{'--c':themeCol[c]} as any}>{p&&bubble[p.id]&&<div className="bubble" style={{'--c':themeCol[c]} as any}>💬 {bubble[p.id]}</div>}<div className="av">{p?(p.av||'🙂'):'?'}</div>
-   <div className="ci"><b>{p?p.name:'Waiting…'}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
+   <div className="ci"><b>{p?p.name:'Waiting…'}{isH&&g.status==='lobby'?' 👑':''}</b><span>{p?(p.id===myId?'You · ':'')+(a?`Turn · ${secs}s`:!isConn?'⚡ Reconnecting…':p.bot?'Bot':`${h}/4 home`):NAME[c]}</span></div>{p&&emo[p.id]&&<i className="emo">{emo[p.id]}</i>}</div>;};
  const win=g.players.find(p=>p.color===g.winner);
  const renderTokens=dispTokens||g.tokens;
  renderTokens.forEach((ts,c)=>{if(!g.players.some(p=>p.color===c))return;ts.forEach((p,i)=>{if(p>=0&&p<56&&!(stepping?.c===c&&stepping?.i===i)){const [x,y]=pos(c,p,i);const k=x+','+y;seen[k]=(seen[k]||0)+1;}});});

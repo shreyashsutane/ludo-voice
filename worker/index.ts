@@ -41,6 +41,7 @@ export class Room extends DurableObject{
  rl=new Map<WebSocket,number[]>();
  botTimer:any=null;
  g:Game|null=null;
+ stepping=false;
  constructor(s:any,e:any){super(s,e);s.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping','pong'));}
  async fetch(_:Request){if(this.ctx.getWebSockets().length>=MAX_SOCKETS)return new Response('Room full',{status:503});
   const [c,s]=Object.values(new WebSocketPair());this.ctx.acceptWebSocket(s);return new Response(null,{status:101,webSocket:c});}
@@ -61,35 +62,42 @@ export class Room extends DurableObject{
   if(this.botTimer){clearTimeout(this.botTimer);this.botTimer=null;}
   if(g.status!=='playing'||this.ctx.getWebSockets().length===0)return;
   const cur=g.players[g.turn];if(!cur)return;
-  const delay=cur.bot?BOT_MS:Math.max(200,g.deadline-Date.now());
+  const delay=cur.bot?(g.roll===null?600:850):Math.max(200,g.deadline-Date.now());
   this.botTimer=setTimeout(()=>this.step(),delay);
  }
  async step(){
-  let g=await this.getG();
-  if(g.status!=='playing'){
-   if(this.ctx.getWebSockets().length===0&&g.status==='done'){
-    await this.ctx.storage.deleteAll();
-    this.g=null;
+  if(this.stepping)return;
+  this.stepping=true;
+  try{
+   let g=await this.getG();
+   if(g.status!=='playing'){
+    if(this.ctx.getWebSockets().length===0&&g.status==='done'){
+     await this.ctx.storage.deleteAll();
+     this.g=null;
+    }
+    return;
    }
-   return;
-  }
-  const cur=g.players[g.turn];if(!cur)return;
-  const now=Date.now();
-  if(!cur.bot&&now<g.deadline-100)return;
-  if(!cur.bot){
-   cur.miss=(cur.miss||0)+1;
-   if(cur.miss>=2)cur.bot=true;
-   g.roll=null;g.msg=`${cur.name} timed out`;
-   g.turn=(g.turn+1)%g.players.length;
-  }else{
-   if(g.roll===null)doRoll(g,1+rnd(6));
-   if(g.status==='playing'&&g.roll!==null){
-    const mv=legal(g.tokens[cur.color],g.roll);
-    if(mv.length>0)doMove(g,mv[rnd(mv.length)]);
+   const cur=g.players[g.turn];if(!cur)return;
+   const now=Date.now();
+   if(!cur.bot&&now<g.deadline-100)return;
+   if(!cur.bot){
+    cur.miss=(cur.miss||0)+1;
+    if(cur.miss>=2)cur.bot=true;
+    g.roll=null;g.msg=`${cur.name} timed out`;
+    g.turn=(g.turn+1)%g.players.length;
+   }else{
+    if(g.roll===null){
+     doRoll(g,1+rnd(6));
+    }else{
+     const mv=legal(g.tokens[cur.color],g.roll);
+     if(mv.length>0)doMove(g,mv[rnd(mv.length)]);
+     else{g.roll=null;g.turn=(g.turn+1)%g.players.length;}
+    }
    }
-  }
-  arm(g);
-  await this.save(g);
+   arm(g);
+   await this.save(g);
+  }catch(e){console.error('step error:',e);}
+  finally{this.stepping=false;}
  }
  async save(g?:Game){
   if(g)this.g=g;
@@ -100,86 +108,107 @@ export class Room extends DurableObject{
    this.g.counted=true;const E=this.env as any;
    try{await E.LB.get(E.LB.idFromName('global')).record(this.g.players.map(p=>({id:p.id,name:p.name,av:p.av||'🙂',win:p.color===this.g!.winner})));}catch(e){console.error(e);}
   }
-  await this.ctx.storage.put('g',this.g);
-  await this.ctx.storage.setAlarm(this.g.status==='playing'?this.g.deadline:Date.now()+IDLE_MS);
   this.bcast({t:'state',g:this.g});
   this.plan(this.g);
+  try{
+   await this.ctx.storage.put('g',this.g);
+   if(this.ctx.getWebSockets().length===0){
+    await this.ctx.storage.setAlarm(Date.now()+IDLE_MS);
+   }
+  }catch(e){console.error('Storage put error:',e);}
  }
  async webSocketMessage(ws:WebSocket,raw:string|ArrayBuffer){
-  if(typeof raw!=='string'||raw.length>MAX_MSG)return;
-  if(!this.ok(ws)){ws.close(1008,'Rate limit');return;}
-  let m:any;try{m=JSON.parse(raw);}catch{return;}if(!m||typeof m!=='object')return;
-  let me=this.pid(ws);
-  if(m.t==='join'){if(typeof m.key!=='string'||m.key.length<16||m.key.length>64)return;me=await hash(m.key);ws.serializeAttachment({pid:me});}
-  if(!me)return;
-  if(m.t==='sig'){
-   if(!m.data||typeof m.data!=='object')return;
-   const s=JSON.stringify({t:'sig',from:me,data:m.data});
-   for(const o of this.ctx.getWebSockets())if(o!==ws&&(!m.to||this.pid(o)===m.to))try{o.send(s);}catch{}
-   return;
-  }
-  if(m.t==='emo'){if(EMO.includes(m.e))this.bcast({t:'emo',pid:me,e:m.e});return;}
-  let g=await this.getG();
-  if(m.t==='chat'){
-   const txt=String(m.text||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,60);
-   if(txt){const p=g.players.find(q=>q.id===me);this.bcast({t:'chat',pid:me,name:p?.name||'Player',text:txt,color:p?.color??0});}
-   return;
-  }
-  const cur=g.players[g.turn];
-  const isHost=(me===g.hostId)||(!g.hostId&&g.players[0]?.id===me);
-  if(m.t==='join'){
-   const name=String(m.name??'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,14)||'Player';
-   const p=g.players.find(q=>q.id===me);
-   const av=AVS.includes(m.av)?m.av:'🙂';
-   if(p){p.name=name;p.av=av;p.bot=false;p.miss=0;}
-   else if(g.status==='lobby'&&g.players.length<4){
-    const used=g.players.map(q=>q.color);
-    g.players.push({id:me,name,av,color:[0,1,2,3].find(c=>!used.includes(c))!});
+  try{
+   if(typeof raw!=='string'||raw.length>MAX_MSG)return;
+   if(!this.ok(ws)){ws.close(1008,'Rate limit');return;}
+   let m:any;try{m=JSON.parse(raw);}catch{return;}if(!m||typeof m!=='object')return;
+   let me=this.pid(ws);
+   if(m.t==='join'){if(typeof m.key!=='string'||m.key.length<16||m.key.length>64)return;me=await hash(m.key);ws.serializeAttachment({pid:me});}
+   if(!me)return;
+   if(m.t==='sig'){
+    if(!m.data||typeof m.data!=='object')return;
+    const s=JSON.stringify({t:'sig',from:me,data:m.data});
+    for(const o of this.ctx.getWebSockets())if(o!==ws&&(!m.to||this.pid(o)===m.to))try{o.send(s);}catch{}
+    return;
    }
-   else if(g.status==='done'&&this.ctx.getWebSockets().length===1){
-    g={...newGame(),gid:crypto.randomUUID(),players:[{id:me,name,av,color:0}],hostId:me,status:'lobby'};
+   if(m.t==='emo'){if(EMO.includes(m.e))this.bcast({t:'emo',pid:me,e:m.e});return;}
+   let g=await this.getG();
+   if(m.t==='chat'){
+    const txt=String(m.text||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,60);
+    if(txt){const p=g.players.find(q=>q.id===me);this.bcast({t:'chat',pid:me,name:p?.name||'Player',text:txt,color:p?.color??0});}
+    return;
+   }
+   const cur=g.players[g.turn];
+   const isHost=(me===g.hostId)||(!g.hostId&&g.players[0]?.id===me);
+   if(m.t==='join'){
+    const name=String(m.name??'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,14)||'Player';
+    const p=g.players.find(q=>q.id===me);
+    const av=AVS.includes(m.av)?m.av:'🙂';
+    if(p){p.name=name;p.av=av;p.bot=false;p.miss=0;}
+    else if(g.status==='lobby'&&g.players.length<4){
+     const used=g.players.map(q=>q.color);
+     g.players.push({id:me,name,av,color:[0,1,2,3].find(c=>!used.includes(c))!});
+    }
+    else if(g.status==='done'&&this.ctx.getWebSockets().length===1){
+     const curSeq=this.g?.seq||0;
+     g={...newGame(),gid:crypto.randomUUID(),players:[{id:me,name,av,color:0}],hostId:me,status:'lobby',seq:curSeq};
+     this.g=g;
+    }
+    if(!g.hostId&&g.players.length>0)g.hostId=g.players[0].id;
+    if(g.status==='playing'&&this.ctx.getWebSockets().length===1)arm(g);
+    ws.send(JSON.stringify({t:'you',id:me}));
+   }
+   else if(m.t==='add_bot'&&g.status==='lobby'&&isHost&&g.players.length<4){
+    const used=g.players.map(q=>q.color);const color=[0,1,2,3].find(c=>!used.includes(c))!;
+    const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const bCount=g.players.filter(q=>q.bot).length;
+    g.players.push({id:`bot-${color}`,name:BOT_NAMES[bCount]||`Bot ${color+1}`,av:'🤖',color,bot:true});
+   }
+   else if(m.t==='kick_bot'&&g.status==='lobby'&&isHost){
+    const bIdx=[...g.players].reverse().findIndex(q=>q.bot);
+    if(bIdx!==-1)g.players.splice(g.players.length-1-bIdx,1);
+   }
+   else if(m.t==='start'&&g.status==='lobby'&&isHost){
+    const curSeq=this.g?.seq||0;
+    const players=g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot}));
+    if(players.length===1){
+     const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const used=players.map(q=>q.color);
+     [0,1,2,3].filter(c=>!used.includes(c)).forEach((c,idx)=>{
+      players.push({id:`bot-${c}`,name:BOT_NAMES[idx],av:'🤖',color:c,bot:true});
+     });
+    }
+    g={...newGame(),gid:crypto.randomUUID(),players,hostId:me,status:'playing',seq:curSeq};
+    this.g=g;
+    arm(g);
+   }
+   else if(m.t==='again'&&g.status==='done'&&isHost){
+    const curSeq=this.g?.seq||0;
+    g={...newGame(),gid:crypto.randomUUID(),players:g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot})),hostId:me,status:'lobby',seq:curSeq};
     this.g=g;
    }
-   if(!g.hostId&&g.players.length>0)g.hostId=g.players[0].id;
-   if(g.status==='playing'&&this.ctx.getWebSockets().length===1)arm(g);
-   ws.send(JSON.stringify({t:'you',id:me}));
-  }
-  else if(m.t==='add_bot'&&g.status==='lobby'&&isHost&&g.players.length<4){
-   const used=g.players.map(q=>q.color);const color=[0,1,2,3].find(c=>!used.includes(c))!;
-   const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const bCount=g.players.filter(q=>q.bot).length;
-   g.players.push({id:`bot-${color}`,name:BOT_NAMES[bCount]||`Bot ${color+1}`,av:'🤖',color,bot:true});
-  }
-  else if(m.t==='kick_bot'&&g.status==='lobby'&&isHost){
-   const bIdx=[...g.players].reverse().findIndex(q=>q.bot);
-   if(bIdx!==-1)g.players.splice(g.players.length-1-bIdx,1);
-  }
-  else if(m.t==='start'&&g.status==='lobby'&&isHost){
-   const players=g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot}));
-   if(players.length===1){
-    const BOT_NAMES=['Nova Bot','Apex Bot','Cyber Bot'];const used=players.map(q=>q.color);
-    [0,1,2,3].filter(c=>!used.includes(c)).forEach((c,idx)=>{
-     players.push({id:`bot-${c}`,name:BOT_NAMES[idx],av:'🤖',color:c,bot:true});
-    });
+   else if(g.status==='playing'&&cur?.id===me){
+    cur.bot=false;cur.miss=0;
+    if(m.t==='roll'&&g.roll===null){
+     doRoll(g,1+rnd(6));
+    }else if(m.t==='move'&&g.roll!==null&&Number.isInteger(m.i)&&m.i>=0&&m.i<=3){
+     if(!doMove(g,m.i)){
+      if(this.g)try{ws.send(JSON.stringify({t:'state',g:this.g}));}catch{}
+      return;
+     }
+    }else{
+     if(this.g)try{ws.send(JSON.stringify({t:'state',g:this.g}));}catch{}
+     return;
+    }
+    arm(g);
    }
-   g={...newGame(),gid:crypto.randomUUID(),players,hostId:me,status:'playing'};
-   this.g=g;
-   arm(g);
+   else{
+    if(this.g)try{ws.send(JSON.stringify({t:'state',g:this.g}));}catch{}
+    return;
+   }
+   await this.save(g);
+  }catch(err){
+   console.error('WS msg error:',err);
+   if(this.g)try{ws.send(JSON.stringify({t:'state',g:this.g}));}catch{}
   }
-  else if(m.t==='again'&&g.status==='done'&&isHost){
-   g={...newGame(),gid:crypto.randomUUID(),players:g.players.map(p=>({id:p.id,name:p.name,av:p.av,color:p.color,bot:p.bot})),hostId:me,status:'lobby'};
-   this.g=g;
-  }
-  else if(g.status==='playing'&&cur?.id===me){
-   cur.bot=false;cur.miss=0;
-   if(m.t==='roll'&&g.roll===null){
-    doRoll(g,1+rnd(6));
-   }else if(m.t==='move'&&g.roll!==null&&Number.isInteger(m.i)&&m.i>=0&&m.i<=3){
-    if(!doMove(g,m.i))return;
-   }else return;
-   arm(g);
-  }
-  else return;
-  await this.save(g);
  }
  async alarm(){await this.step();}
  async webSocketClose(ws:WebSocket){

@@ -52,17 +52,26 @@ export default function App(){
  const sendChat=(t:string)=>{const cleanT=t.trim().slice(0,60);if(!cleanT)return;send({t:'chat',text:cleanT});setMsg('');sfx('chat',cfgRef.current.sound);};
  const [rolling,setRolling]=useState(false);const [rollFace,setRollFace]=useState<number|null>(null);
  const [landed,setLanded]=useState(false);const rollTimer=useRef<any>(null);const landTimer=useRef<any>(null);
- const startRollAnim=()=>{
+ const startRollAnim=(targetFace?:number)=>{
   clearTimeout(rollTimer.current);clearTimeout(landTimer.current);
   setRolling(true);setLanded(false);
   const start=Date.now();
+  let delay=28;
   const shuffle=()=>{
-   if(Date.now()-start<420){
+   const elapsed=Date.now()-start;
+   if(elapsed<280){
     setRollFace(1+Math.floor(Math.random()*6));
-    rollTimer.current=setTimeout(shuffle,45);
+    if(elapsed>150)delay=48;
+    if(elapsed>220)delay=70;
+    rollTimer.current=setTimeout(shuffle,delay);
    }else{
-    setRolling(false);setRollFace(null);setLanded(true);
-    landTimer.current=setTimeout(()=>setLanded(false),280);
+    setRolling(false);
+    setRollFace(targetFace||null);
+    setLanded(true);
+    landTimer.current=setTimeout(()=>{
+     setLanded(false);
+     setRollFace(null);
+    },350);
    }
   };
   shuffle();
@@ -73,10 +82,14 @@ export default function App(){
  useEffect(()=>{crypto.subtle.digest('SHA-256',new TextEncoder().encode(key)).then(b=>setMyId([...new Uint8Array(b).slice(0,8)].map(x=>x.toString(16).padStart(2,'0')).join('')));},[]);
  useEffect(()=>{if(g?.status!=='playing')return;const i=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(i);},[g?.status]);
  const onState=(newG:Game)=>{
-  if(newG.seq&&lastSeq.current&&newG.seq<lastSeq.current)return;
-  const seqGap=newG.seq&&lastSeq.current?(newG.seq-lastSeq.current):1;
+  const isNewGame=!g||newG.gid!==g.gid||newG.status!==g.status;
+  if(isNewGame){
+   lastSeq.current=newG.seq||0;
+  }else if(newG.seq&&lastSeq.current&&newG.seq<lastSeq.current){
+   return;
+  }
   if(newG.seq)lastSeq.current=newG.seq;
-  if(newG.status==='lobby'||!tokensRef.current||seqGap>1){
+  if(newG.status==='lobby'||!tokensRef.current||isNewGame){
    clearTimeout(animTimer.current);pendingG.current=null;isAnimatingRef.current=false;
    tokensRef.current=newG.tokens.map(ts=>[...ts]);setDispTokens(newG.tokens.map(ts=>[...ts]));
    setStepping(null);setAnimating(false);setG(newG);return;}
@@ -99,8 +112,8 @@ export default function App(){
    setG(newG);
    if(pendingG.current){const nxt=pendingG.current;pendingG.current=null;onState(nxt);}};
   const doStep=()=>{
-   if(stepIdx<steps.length){const nextP=steps[stepIdx++];tokensRef.current=tokensRef.current.map((ts,c)=>c===moved!.c?ts.map((p,i)=>i===moved!.i?nextP:p):[...ts]);setDispTokens(tokensRef.current.map(ts=>[...ts]));sfx('step',cfgRef.current.sound);animTimer.current=setTimeout(doStep,210);}
-   else{if(captured.length>0){animTimer.current=setTimeout(()=>{tokensRef.current=tokensRef.current.map((ts,c)=>ts.map((p,i)=>captured.some(cap=>cap.c===c&&cap.i===i)?-1:p));setDispTokens(tokensRef.current.map(ts=>[...ts]));sfx('cap',cfgRef.current.sound);animTimer.current=setTimeout(finishAnim,180);},100);}
+   if(stepIdx<steps.length){const nextP=steps[stepIdx++];tokensRef.current=tokensRef.current.map((ts,c)=>c===moved!.c?ts.map((p,i)=>i===moved!.i?nextP:p):[...ts]);setDispTokens(tokensRef.current.map(ts=>[...ts]));sfx('step',cfgRef.current.sound);animTimer.current=setTimeout(doStep,190);}
+   else{if(captured.length>0){animTimer.current=setTimeout(()=>{tokensRef.current=tokensRef.current.map((ts,c)=>ts.map((p,i)=>captured.some(cap=>cap.c===c&&cap.i===i)?-1:p));setDispTokens(tokensRef.current.map(ts=>[...ts]));sfx('cap',cfgRef.current.sound);animTimer.current=setTimeout(finishAnim,160);},100);}
    else{finishAnim();}}};
   animTimer.current=setTimeout(doStep,30);};
  onStateRef.current=onState;
@@ -109,24 +122,29 @@ export default function App(){
    if(dead)return;
    clearTimeout(t);
    const w=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/${room}`);ws.current=w;
-   w.onopen=()=>{retry=0;setOnline(true);w.send(JSON.stringify({t:'join',key,name,av:st.av}));clearInterval(ping);ping=setInterval(()=>w.readyState===1&&w.send('ping'),20000);};
-   w.onmessage=e=>{if(e.data==='pong')return;const m=JSON.parse(e.data);if(m.t==='state')onStateRef.current?.(m.g);
-    else if(m.t==='you'){setMyId(m.id);if(!voice.current)voice.current=new Voice(m.id,send,(p,s)=>setStreams(o=>{const n={...o};s?n[p]=s:delete n[p];return n;}));}
-    else if(m.t==='sig')voice.current?.onSig(m.from,m.data);
-    else if(m.t==='emo'){setEmo(o=>({...o,[m.pid]:m.e}));setTimeout(()=>setEmo(o=>{const n={...o};delete n[m.pid];return n;}),2500);}
-    else if(m.t==='chat'){
-     setChats(o=>[...o.slice(-20),{id:m.pid,name:m.name,text:m.text,color:m.color}]);
-     setBubble(o=>({...o,[m.pid]:m.text}));
-     sfx('chat',cfgRef.current.sound);
-     setTimeout(()=>setBubble(o=>{const n={...o};delete n[m.pid];return n;}),3500);};};
+   w.onopen=()=>{retry=0;setOnline(true);w.send(JSON.stringify({t:'join',key,name,av:st.av}));clearInterval(ping);ping=setInterval(()=>w.readyState===1&&w.send('ping'),15000);};
+   w.onmessage=e=>{if(e.data==='pong')return;
+    try{
+     const m=JSON.parse(e.data);if(m.t==='state')onStateRef.current?.(m.g);
+     else if(m.t==='you'){setMyId(m.id);if(!voice.current)voice.current=new Voice(m.id,send,(p,s)=>setStreams(o=>{const n={...o};s?n[p]=s:delete n[p];return n;}));}
+     else if(m.t==='sig')voice.current?.onSig(m.from,m.data);
+     else if(m.t==='emo'){setEmo(o=>({...o,[m.pid]:m.e}));setTimeout(()=>setEmo(o=>{const n={...o};delete n[m.pid];return n;}),2500);}
+     else if(m.t==='chat'){
+      setChats(o=>[...o.slice(-20),{id:m.pid,name:m.name,text:m.text,color:m.color}]);
+      setBubble(o=>({...o,[m.pid]:m.text}));
+      sfx('chat',cfgRef.current.sound);
+      setTimeout(()=>setBubble(o=>{const n={...o};delete n[m.pid];return n;}),3500);};
+    }catch(err){console.error('WS parse error:',err);}
+   };
    w.onclose=()=>{
     setOnline(false);clearInterval(ping);
     if(!dead){
-     const delay=Math.min(8000,800*Math.pow(1.4,retry))+Math.random()*300;
+     const delay=Math.min(4000,400*Math.pow(1.35,retry))+Math.random()*150;
      retry++;
      t=setTimeout(open,delay);
     }
    };
+   w.onerror=()=>{try{w.close();}catch{}};
   };
   open();
   const onWake=()=>{
@@ -140,17 +158,19 @@ export default function App(){
   const onVis=()=>{if(document.visibilityState==='visible')onWake();};
   document.addEventListener('visibilitychange',onVis);
   window.addEventListener('online',onWake);
+  window.addEventListener('focus',onWake);
   return()=>{
    dead=true;clearTimeout(t);clearInterval(ping);
    document.removeEventListener('visibilitychange',onVis);
    window.removeEventListener('online',onWake);
+   window.removeEventListener('focus',onWake);
    clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);
    isAnimatingRef.current=false;ws.current?.close();voice.current?.stop();voice.current=undefined;
   };
  },[room,go]);
  useEffect(()=>{const p=prev.current;prev.current=g;if(!g||!p)return;const cur=g.players[g.turn];
   if(g.status==='done'&&p.status!=='done')sfx('win',cfg.sound);
-  else if(g.status==='playing'&&g.roll!==null&&(p.roll===null||p.last!==g.last||p.turn!==g.turn)){if(!rolling){sfx('roll',cfg.sound);startRollAnim();}}
+  else if(g.status==='playing'&&g.last&&(p.last?.v!==g.last.v||p.last?.color!==g.last.color||p.turn!==g.turn)){if(!rolling){sfx('roll',cfg.sound);startRollAnim(g.last.v);}}
   if(g.turn!==p.turn&&(offline||cur?.id===myId)&&g.status==='playing'){sfx('turn',cfg.sound);if(cfg.vibe)navigator.vibrate?.(120);}
   if(g.status==='done'&&g.gid&&counted.current!==g.gid){counted.current=g.gid;const me=g.players.find(q=>q.id===myId);
    if(me){const w=g.winner===me.color;setSt(s=>({...s,games:s.games+1,wins:s.wins+(w?1:0),coins:s.coins+10+(w?50:0)}));}}},[g]);
@@ -162,7 +182,7 @@ export default function App(){
   if(shouldAuto){const tgt=mvs[0];autoTimer.current=setTimeout(()=>{
    if(offline){setG(prevG=>{if(!prevG||prevG.status!=='playing'||prevG.roll==null)return prevG;const curP=prevG.players[prevG.turn];if(!curP)return prevG;const tok=prevG.tokens[curP.color];const valid=legal(tok,prevG.roll);if(!valid.includes(tgt))return prevG;const cl:Game=JSON.parse(JSON.stringify(prevG));doMove(cl,tgt);onState(cl);return cl;});}
    else{send({t:'move',i:tgt});}
-  },320);}return()=>clearTimeout(autoTimer.current);
+  },60);}return()=>clearTimeout(autoTimer.current);
  },[g?.status,g?.roll,g?.turn,animating,rolling,myId,offline,cfg.automove]);
  const startPassAndPlay=()=>{
   const cols=passCount===2?[0,2]:passCount===3?[0,1,2]:[0,1,2,3];
@@ -182,10 +202,10 @@ export default function App(){
   setErr('');location.hash=r;setRoom(r);setGo(true);};
  const leave=()=>{
   if(offline){
-   if(confirm('Quit offline game?')){setOffline(false);setG(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setDispTokens(null);}
+   if(confirm('Quit offline game?')){setOffline(false);setG(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setDispTokens(null);lastSeq.current=0;}
    return;
   }
-  if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
+  if(g?.status==='playing'&&!confirm('Leave the game? A bot will play for you.'))return;clearTimeout(animTimer.current);clearTimeout(autoTimer.current);clearTimeout(rollTimer.current);clearTimeout(landTimer.current);setRolling(false);setLanded(false);setRollFace(null);isAnimatingRef.current=false;pendingG.current=null;setAnimating(false);setStepping(null);setDispTokens(null);tokensRef.current=[0,1,2,3].map(()=>[-1,-1,-1,-1]);lastSeq.current=0;setGo(false);setG(null);setRoom('');setOn(false);setStreams({});location.hash='';prev.current=null;};
  const toggleVoice=async()=>{if(!voice.current){setErr('Still connecting. Try again in a moment.');return;}try{if(on){voice.current.stop();setOn(false);}else{await voice.current.start();setOn(true);setMuted(false);setErr('');}}catch{setErr('Microphone blocked. Allow mic access and retry.');}};
  const T=THEMES[st.theme]||THEMES[0],L=level(st);
  const themeCol=T.colors||COL;
@@ -284,8 +304,9 @@ export default function App(){
   initAudio();sfx('roll',cfg.sound);startRollAnim();
   if(offline){
    const v=1+Math.floor(Math.random()*6);
-   setTimeout(()=>{setG(p=>p?(()=>{const cl:Game=JSON.parse(JSON.stringify(p));doRoll(cl,v);return cl;})():null);},420);
-  }else{send({t:'roll'});}
+   startRollAnim(v);
+   setTimeout(()=>{setG(p=>p?(()=>{const cl:Game=JSON.parse(JSON.stringify(p));doRoll(cl,v);return cl;})():null);},120);
+  }else{startRollAnim();send({t:'roll'});}
  },cap='';
  if(g.status==='lobby'){
   const solo=g.players.length===1;
@@ -320,17 +341,43 @@ export default function App(){
     {[0,1,2,3].map(i=>{const [x,y]=pos(c,-1,i);return<circle key={i} cx={x} cy={y} r={.55} fill="#0b1220" stroke={themeCol[c]} strokeOpacity={!activeP?".15":".4"} strokeWidth=".05"/>;})}</g>;})}
    {PATH.map(([x,y],i)=>cell(x,y,START.includes(i)?themeCol[START.indexOf(i)]:T.cell,'t'+i,SAFE.includes(i)&&!START.includes(i)))}
    {HOME.map((h,c)=>[0,1,2,3,4].map(k=>cell(h[0]+h[2]*k,h[1]+h[3]*k,themeCol[c],`h${c}${k}`)))}
+   <defs>
+    <linearGradient id="diceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+     <stop offset="0%" stopColor="#ffffff"/>
+     <stop offset="65%" stopColor="#f3f6fc"/>
+     <stop offset="100%" stopColor="#dde4f0"/>
+    </linearGradient>
+   </defs>
    <rect x={6} y={6} width={3} height={3} rx={.38} fill="#0a101d" stroke={mine&&g.roll===null?themeCol[cur?.color??0]:T.line} strokeWidth={mine&&g.roll===null?".08":".06"}/>
    {renderTokens.map((ts,c)=>g.players.some(p=>p.color===c)&&ts.map((p,i)=>{let [x,y]=pos(c,p,i);const isHop=stepping?.c===c&&stepping?.i===i;
     const isWon=p===56;
     if(p>=0&&!isWon&&!isHop){const k=x+','+y;const tot=seen[k]||1;if(tot>1){x+=(i-1.5)*.14;y-=(i-1.5)*.14;}}
     const can=c===mc&&movable.includes(i);
-    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`,cursor:can?'pointer':'default'}} onClick={()=>{clearTimeout(autoTimer.current);if(can&&!animating){initAudio();sfx('step',cfg.sound);if(offline){setG(prevG=>{if(!prevG||prevG.status!=='playing'||prevG.roll==null)return prevG;const curP=prevG.players[prevG.turn];if(!curP)return prevG;const tok=prevG.tokens[curP.color];const valid=legal(tok,prevG.roll);if(!valid.includes(i))return prevG;const cl:Game=JSON.parse(JSON.stringify(prevG));doMove(cl,i);onState(cl);return cl;});}else{send({t:'move',i});}}}}>{can&&<circle r={.5} className="ring"/>}
+    return<g key={c+'-'+i} className={'tok'+(isHop?' hop':'')} style={{transform:`translate(${x}px,${y}px)`}} onClick={(e)=>{e.stopPropagation();clearTimeout(autoTimer.current);if(can&&!animating&&!isAnimatingRef.current){initAudio();sfx('step',cfg.sound);if(offline){setG(prevG=>{if(!prevG||prevG.status!=='playing'||prevG.roll==null)return prevG;const curP=prevG.players[prevG.turn];if(!curP)return prevG;const tok=prevG.tokens[curP.color];const valid=legal(tok,prevG.roll);if(!valid.includes(i))return prevG;const cl:Game=JSON.parse(JSON.stringify(prevG));doMove(cl,i);onState(cl);return cl;});}else{send({t:'move',i});}}}}>
+     <circle r={.68} fill="transparent" style={{pointerEvents:can?'all':'none',cursor:can?'pointer':'default'}}/>
+     {can&&<circle r={.52} className="ring"/>}
+     {can&&<circle r={.28} className="pulse-hit"/>}
      <PieceGraphic shape={T.shape} color={themeCol[c]} isWon={isWon} isHop={isHop} /></g>;}))}
-   {(()=>{const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
+   {(()=>{
+    const dispV=(rolling&&rollFace)?rollFace:(g.last?.v??0);
+    const dieColor=g.last?themeCol[g.last.color]:themeCol[cur?.color??0];
+    const isSix=dispV===6&&landed;
     return<g className={"dice"+(rolling?" rolling":"")+(landed?" land":"")+(mine&&g.roll===null&&!rolling?" tap-me":"")} onClick={()=>!dis&&g.status==='playing'&&act()} style={{cursor:!dis?'pointer':'default'}}>
-     <rect x={6.82} y={6.52} width={1.36} height={1.36} rx={.28} fill="#f4f8ff" stroke="#b0c4e8" strokeWidth=".03"/>
-     {PIPS[dispV].map(i=><circle key={i} cx={7.13+(i%3)*.37} cy={6.83+Math.floor(i/3)*.37} r={.11} fill={g.last?themeCol[g.last.color]:"#16213a"}/>)}</g>;})()}
+     <ellipse cx={7.5} cy={8.08} rx={rolling?.55:.72} ry={rolling?.16:.24} fill="#000" fillOpacity={rolling?.28:.55}/>
+     {isSix&&<circle cx={7.5} cy={7.18} r={.7} className="six-burst"/>}
+     <rect x={6.8} y={6.58} width={1.4} height={1.36} rx={.32} fill="#b4c2dc"/>
+     <rect x={6.8} y={6.5} width={1.4} height={1.36} rx={.3} fill="url(#diceGrad)" stroke="#ffffff" strokeWidth=".04"/>
+     <path d="M 6.95 6.55 Q 7.5 6.5 8.05 6.55 Q 7.9 6.82 7.1 6.82 Z" fill="#ffffff" fillOpacity=".7"/>
+     {PIPS[dispV].map(i=>{
+      const px=7.11+(i%3)*.39, py=6.81+Math.floor(i/3)*.39;
+      return<g key={i}>
+       <circle cx={px+.015} cy={py+.02} r={.115} fill="#0a1222" fillOpacity=".45"/>
+       <circle cx={px} cy={py} r={.115} fill={dieColor}/>
+       <circle cx={px-.03} cy={py-.03} r={.035} fill="#ffffff" fillOpacity=".85"/>
+      </g>;
+     })}
+    </g>;
+   })()}
    <text x={7.5} y={8.55} fontSize=".28" fontWeight="700" textAnchor="middle" fill={mine&&g.roll===null?"#3ff0a0":"#9fb3d9"}>{cap}</text>
   </svg></div>
   <div className="cards">{card(3)}{card(2)}</div>

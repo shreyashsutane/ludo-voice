@@ -43,17 +43,33 @@ header{display:flex;align-items:center;justify-content:space-between;padding:3px
 .pulse-yard{animation:pulseYard 2s infinite alternate ease-in-out}
 @keyframes pulseYard{0%{stroke-opacity:.7;fill-opacity:.12}100%{stroke-opacity:1;fill-opacity:.26;filter:drop-shadow(0 0 8px currentColor)}}
 .dice{transform-box:fill-box;transform-origin:center;will-change:transform}
-.dice.rolling{animation:diceRoll .42s cubic-bezier(0.25, 0.46, 0.45, 0.94);filter:drop-shadow(0 4px 14px rgba(0,0,0,.7))}
-.dice.land{animation:diceLand .28s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+.dice.rolling{animation:diceTumble .3s cubic-bezier(0.2, 0.8, 0.25, 1);filter:drop-shadow(0 8px 18px rgba(0,0,0,.85))}
+.dice.land{animation:diceImpact .32s cubic-bezier(0.175, 0.885, 0.32, 1.4);filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
 .tap-me{animation:pulseTap 1.3s infinite alternate ease-in-out;transform-box:fill-box;transform-origin:center}
-@keyframes pulseTap{0%{transform:scale(1);filter:drop-shadow(0 0 3px rgba(63,240,160,.6))}100%{transform:scale(1.08);filter:drop-shadow(0 0 10px rgba(63,240,160,.95))}}
-@keyframes diceRoll{0%{transform:scale(1) rotate(0deg)}20%{transform:scale(1.22) rotate(-90deg)}45%{transform:scale(1.26) rotate(135deg)}70%{transform:scale(1.18) rotate(270deg)}88%{transform:scale(1.08) rotate(340deg)}100%{transform:scale(1) rotate(360deg)}}
-@keyframes diceLand{0%{transform:scale(1.18)}50%{transform:scale(0.92)}100%{transform:scale(1)}}
+@keyframes pulseTap{0%{transform:scale(1);filter:drop-shadow(0 0 4px rgba(63,240,160,.7))}100%{transform:scale(1.09);filter:drop-shadow(0 0 14px rgba(63,240,160,1))}}
+@keyframes diceTumble{
+ 0%{transform:scale(1) rotate(0deg) translate(0, 0)}
+ 18%{transform:scale(1.36) rotate(-75deg) translate(-0.1px, -0.35px);filter:drop-shadow(0 12px 20px rgba(0,0,0,.9))}
+ 42%{transform:scale(1.42) rotate(110deg) translate(0.12px, -0.45px)}
+ 68%{transform:scale(1.28) rotate(220deg) translate(-0.08px, -0.25px)}
+ 85%{transform:scale(1.12) rotate(325deg) translate(0.04px, -0.1px)}
+ 100%{transform:scale(1) rotate(360deg) translate(0, 0)}
+}
+@keyframes diceImpact{
+ 0%{transform:scale(1.26) translate(0, -0.15px)}
+ 40%{transform:scale(0.88, 1.14) translate(0, 0.08px)}
+ 72%{transform:scale(1.08, 0.94) translate(0, -0.03px)}
+ 100%{transform:scale(1) translate(0, 0)}
+}
+.six-burst{fill:#fbbf24;stroke:#f59e0b;animation:sixBurst .55s ease-out forwards;transform-box:fill-box;transform-origin:center}
+@keyframes sixBurst{0%{r:.65;stroke-opacity:1;stroke-width:.16;fill-opacity:.45}100%{r:1.45;stroke-opacity:0;stroke-width:.02;fill-opacity:0}}
 .tok{transition:transform .19s cubic-bezier(0.2,0.85,0.3,1.15);will-change:transform;transform-box:fill-box;transform-origin:center}
 .tok.hop{animation:hopJump .19s ease-in-out}
 @keyframes hopJump{0%{transform:scale(1)}45%{transform:scale(1.22);filter:drop-shadow(0 0 6px #ffffffdd)}100%{transform:scale(1)}}
-.ring{fill:none;stroke:#ffffff;stroke-width:.1;animation:ring .8s infinite alternate ease-in-out}
-@keyframes ring{to{r:.62;stroke-opacity:.3}}
+.ring{fill:none;stroke:#ffffff;stroke-width:.09;animation:ring .75s infinite alternate ease-in-out}
+@keyframes ring{0%{r:.48;stroke-opacity:.95;stroke-width:.09}100%{r:.66;stroke-opacity:.25;stroke-width:.04}}
+.pulse-hit{animation:pulseHit .75s infinite alternate ease-in-out}
+@keyframes pulseHit{0%{r:.26;fill-opacity:.28}100%{r:.55;fill-opacity:.04}}
 
 /* Action Controls */
 .picker{display:flex;justify-content:center;gap:4px;padding:2px 0;flex:none}
